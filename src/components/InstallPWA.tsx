@@ -66,7 +66,7 @@ export function InstallPWA({ variant = "button", className }: InstallPWAProps) {
       <div className={`fixed bottom-4 left-4 right-4 z-50 bg-card border border-border rounded-xl p-4 shadow-lg ${className}`}>
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm text-foreground">Instalar BioBR</p>
+            <p className="font-medium text-sm text-foreground">Instalar VtrineBio</p>
             <p className="text-xs text-muted-foreground truncate">
               Adicione à tela inicial para acesso rápido
             </p>

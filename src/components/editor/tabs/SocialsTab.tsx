@@ -71,18 +71,26 @@ export function SocialsTab({
         <CardContent className="space-y-6">
           {/* Quick Add Buttons */}
           <div className="grid grid-cols-4 gap-2">
-            {SOCIAL_PLATFORMS.map((platform) => (
-              <Button
-                key={platform.id}
-                variant="outline"
-                size="sm"
-                className="flex flex-col items-center gap-1 h-auto py-3"
-                onClick={() => handleAddSocial(platform)}
-              >
-                <span className="text-xl">{platform.icon}</span>
-                <span className="text-xs">{platform.name}</span>
-              </Button>
-            ))}
+            {SOCIAL_PLATFORMS.map((platform) => {
+              // At most one icon per platform: once a platform is added, its
+              // button is disabled instead of allowing another one to be
+              // created (edit/remove happens via the "Adicionados" list below).
+              const isAdded = links.some((l) => l.icon === platform.icon);
+              return (
+                <Button
+                  key={platform.id}
+                  variant="outline"
+                  size="sm"
+                  disabled={isAdded}
+                  className="flex flex-col items-center gap-1 h-auto py-3 disabled:opacity-50"
+                  onClick={() => handleAddSocial(platform)}
+                  title={isAdded ? `${platform.name} já foi adicionado` : undefined}
+                >
+                  <span className="text-xl">{platform.icon}</span>
+                  <span className="text-xs">{platform.name}</span>
+                </Button>
+              );
+            })}
           </div>
 
           {/* Added Socials List */}

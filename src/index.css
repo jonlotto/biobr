@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* BioBR Design System - Pink/Black Bold Aesthetic */
+/* VtrineBio Design System - Blue/Black Bold Aesthetic */
 
 @layer base {
   :root {
@@ -18,8 +18,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    /* BioBR Pink Primary #ff2264 */
-    --primary: 342 100% 57%;
+    /* VtrineBio Blue Primary #0137d7 */
+    --primary: 225 99% 42%;
     --primary-foreground: 0 0% 100%;
 
     /* Neutral Secondary */
@@ -29,8 +29,8 @@
     --muted: 0 0% 94%;
     --muted-foreground: 0 0% 45%;
 
-    /* Pink Accent */
-    --accent: 342 100% 65%;
+    /* Blue Accent */
+    --accent: 225 99% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -38,30 +38,30 @@
 
     --border: 0 0% 88%;
     --input: 0 0% 88%;
-    --ring: 342 100% 57%;
+    --ring: 225 99% 42%;
 
     --radius: 1rem;
 
     /* Gradient Colors */
-    --gradient-start: 342 100% 57%;
-    --gradient-mid: 342 100% 65%;
-    --gradient-end: 342 80% 45%;
+    --gradient-start: 225 99% 42%;
+    --gradient-mid: 225 99% 50%;
+    --gradient-end: 225 79% 30%;
 
     /* Glass Effect */
     --glass-bg: 0 0% 100% / 0.7;
     --glass-border: 0 0% 100% / 0.3;
 
     /* Shadow */
-    --shadow-color: 342 50% 50%;
+    --shadow-color: 225 50% 35%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 26%;
-    --sidebar-primary: 342 100% 57%;
+    --sidebar-primary: 225 99% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 96%;
     --sidebar-accent-foreground: 0 0% 10%;
     --sidebar-border: 0 0% 91%;
-    --sidebar-ring: 342 100% 57%;
+    --sidebar-ring: 225 99% 42%;
   }
 
   .dark {
@@ -74,7 +74,7 @@
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 342 100% 57%;
+    --primary: 225 99% 42%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 0 0% 15%;
@@ -83,7 +83,7 @@
     --muted: 0 0% 18%;
     --muted-foreground: 0 0% 60%;
 
-    --accent: 342 100% 65%;
+    --accent: 225 99% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 70% 50%;
@@ -91,11 +91,11 @@
 
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 342 100% 57%;
+    --ring: 225 99% 42%;
 
-    --gradient-start: 342 100% 50%;
-    --gradient-mid: 342 100% 60%;
-    --gradient-end: 342 80% 40%;
+    --gradient-start: 225 99% 35%;
+    --gradient-mid: 225 99% 45%;
+    --gradient-end: 225 79% 25%;
 
     --glass-bg: 0 0% 10% / 0.8;
     --glass-border: 0 0% 100% / 0.1;
@@ -104,12 +104,12 @@
 
     --sidebar-background: 0 0% 8%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 342 100% 57%;
+    --sidebar-primary: 225 99% 42%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 15%;
     --sidebar-accent-foreground: 0 0% 95%;
     --sidebar-border: 0 0% 15%;
-    --sidebar-ring: 342 100% 57%;
+    --sidebar-ring: 225 99% 42%;
   }
 }
 

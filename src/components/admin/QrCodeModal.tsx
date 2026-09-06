@@ -151,7 +151,7 @@ export function QrCodeModal({ open, onOpenChange, username }: QrCodeModalProps) 
               onClick={() => setMode("bio")}
               className={`flex-1 rounded-lg border px-3 py-2 text-center transition-all text-sm ${
                 mode === "bio"
-                  ? "border-[#ff2264] bg-[#ff2264]/10 text-white"
+                  ? "border-[#0137d7] bg-[#0137d7]/10 text-white"
                   : "border-white/10 text-white/50 hover:border-white/30 hover:text-white/80"
               }`}
             >
@@ -161,7 +161,7 @@ export function QrCodeModal({ open, onOpenChange, username }: QrCodeModalProps) 
               onClick={() => setMode("custom")}
               className={`flex-1 rounded-lg border px-3 py-2 text-center transition-all text-sm ${
                 mode === "custom"
-                  ? "border-[#ff2264] bg-[#ff2264]/10 text-white"
+                  ? "border-[#0137d7] bg-[#0137d7]/10 text-white"
                   : "border-white/10 text-white/50 hover:border-white/30 hover:text-white/80"
               }`}
             >
@@ -198,7 +198,7 @@ export function QrCodeModal({ open, onOpenChange, username }: QrCodeModalProps) 
                 onClick={() => setStyle(s.key)}
                 className={`flex-1 rounded-lg border px-3 py-2 text-center transition-all text-xs ${
                   style === s.key
-                    ? "border-[#ff2264] bg-[#ff2264]/10 text-white"
+                    ? "border-[#0137d7] bg-[#0137d7]/10 text-white"
                     : "border-white/10 text-white/50 hover:border-white/30 hover:text-white/80"
                 }`}
               >

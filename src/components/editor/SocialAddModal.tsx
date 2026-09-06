@@ -1,4 +1,4 @@
-import { useState, useEffect, ComponentType, SVGProps } from "react";
+import { useState, useEffect, useRef, ComponentType, SVGProps } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,11 +20,36 @@ interface SocialPlatform {
   isPhone?: boolean;
 }
 
+interface ExistingSocial {
+  url: string;
+}
+
 interface SocialAddModalProps {
   open: boolean;
   onClose: () => void;
   onSave: (username: string) => void;
   platform: SocialPlatform | null;
+  /** Present when this platform is already configured — puts the modal in edit mode. */
+  existingSocial?: ExistingSocial | null;
+}
+
+// Reverses urlTemplate.replace("{username}"/"{phone}", value) back into the
+// raw value, so an existing social link can be re-opened for editing
+// pre-filled with its current username/phone instead of a blank field.
+function extractValueFromUrl(url: string, template: string, isPhone?: boolean): string {
+  const placeholder = isPhone ? "{phone}" : "{username}";
+  const idx = template.indexOf(placeholder);
+  if (idx === -1) return "";
+
+  const prefix = template.slice(0, idx);
+  const suffix = template.slice(idx + placeholder.length);
+
+  let value = url.startsWith(prefix) ? url.slice(prefix.length) : url;
+  if (suffix && value.endsWith(suffix)) {
+    value = value.slice(0, value.length - suffix.length);
+  }
+
+  return isPhone ? value.replace(/\D/g, "") : value;
 }
 
 export function SocialAddModal({
@@ -32,16 +57,33 @@ export function SocialAddModal({
   onClose,
   onSave,
   platform,
+  existingSocial,
 }: SocialAddModalProps) {
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
+  const isEditing = !!existingSocial;
+
+  // Only (re)initialize when the modal actually opens, not on every render
+  // while it stays open — avoids wiping in-progress typing if the underlying
+  // link changes identity in the background (see ButtonEditDrawer for the
+  // same issue and fix).
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (open) {
-      setValue("");
-      setError("");
+    if (!open) {
+      initializedRef.current = false;
+      return;
     }
-  }, [open]);
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    if (existingSocial && platform) {
+      setValue(extractValueFromUrl(existingSocial.url, platform.urlTemplate, platform.isPhone));
+    } else {
+      setValue("");
+    }
+    setError("");
+  }, [open, existingSocial, platform]);
 
   const handleSave = () => {
     if (!value.trim()) {
@@ -92,10 +134,12 @@ export function SocialAddModal({
             ) : (
               <span className="text-2xl">{platform?.icon}</span>
             )}
-            Adicionar {platform?.name}
+            {isEditing ? "Editar" : "Adicionar"} {platform?.name}
           </DialogTitle>
           <DialogDescription>
-            {platform?.isPhone
+            {isEditing
+              ? "Você já tem esta rede social configurada. Atualize os dados abaixo."
+              : platform?.isPhone
               ? "Digite seu número de telefone com código do país."
               : "Digite seu nome de usuário na plataforma."}
           </DialogDescription>
@@ -152,7 +196,7 @@ export function SocialAddModal({
           <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSave}>Adicionar</Button>
+          <Button onClick={handleSave}>{isEditing ? "Salvar" : "Adicionar"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

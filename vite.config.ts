@@ -19,8 +19,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
-        name: "BioBR - Seus links em um só lugar",
-        short_name: "BioBR",
+        name: "VtrineBio - Seus links em um só lugar",
+        short_name: "VtrineBio",
         description: "Tenha seus links em um só lugar!",
         theme_color: "#000000",
         background_color: "#000000",

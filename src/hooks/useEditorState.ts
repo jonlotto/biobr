@@ -260,6 +260,10 @@ export function useEditorState(initialTemplateSlug?: string) {
                 l.id === link.id ? { ...l, id: newLink.id } : l
               ),
             }));
+            // Keep the currently-open editor pointed at the same link after
+            // its temp id is replaced by the real database id, otherwise a
+            // pending edit/save targets an id that no longer exists.
+            setSelectedLinkId((prev) => (prev === link.id ? newLink.id : prev));
           }
         } else {
           // Update existing link

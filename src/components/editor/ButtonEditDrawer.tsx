@@ -75,7 +75,20 @@ export function ButtonEditDrawer({
   // Icon/Image tab
   const [mediaTab, setMediaTab] = useState<"icon" | "image">("icon");
 
+  // Only (re)initialize the form when the drawer actually opens, not on every
+  // change to `initialData` while it stays open — the underlying link's id can
+  // change under our feet (e.g. a temp id gets replaced by the real database
+  // id after autosave), which would otherwise wipe out in-progress typing.
+  const initializedRef = useRef(false);
+
   useEffect(() => {
+    if (!open) {
+      initializedRef.current = false;
+      return;
+    }
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     if (initialData) {
       setTitle(initialData.title);
       setIcon(initialData.icon || "");

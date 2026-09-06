@@ -316,7 +316,7 @@ export function ProfileTab({ profile, onUpdate, focusField }: ProfileTabProps) {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Este será o link da sua página: {profile.username || "seunome"}.biobr.site
+              Este será o link da sua página: {profile.username || "seunome"}.vtrinebio.site
             </p>
           </div>
 

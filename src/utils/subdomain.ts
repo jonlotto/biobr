@@ -1,5 +1,5 @@
 // Known application domains
-const MAIN_DOMAINS = ['biobr.site', 'localhost', 'lovable.app'];
+const MAIN_DOMAINS = ['vtrinebio.site', 'localhost', 'lovable.app'];
 
 // Reserved paths that should not be treated as usernames
 const RESERVED_PATHS = ['admin', 'editor', 'auth', 'design', 'api'];
@@ -58,7 +58,7 @@ export function isMainDomain(): boolean {
  */
 export function buildSubdomainUrl(username: string): string {
   const protocol = window.location.protocol;
-  return `${protocol}//${username.toLowerCase()}.biobr.site`;
+  return `${protocol}//${username.toLowerCase()}.vtrinebio.site`;
 }
 
 /**

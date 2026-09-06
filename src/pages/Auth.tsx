@@ -1,17 +1,19 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Link2, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
+import biobrLogo from "@/assets/biobr-logo.png";
+
+const inputClass =
+  "w-full rounded-lg border border-black bg-white px-3 py-2.5 text-base text-black placeholder:text-black/40 outline-none focus:ring-2 focus:ring-[#0349FD]/30";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -52,90 +54,110 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-scale-in">
-        <div className="glass-strong rounded-3xl p-8 shadow-glow-lg">
-          {/* Logo */}
-          <div className="flex flex-col items-center gap-4 mb-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-glow">
-              <Link2 className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <div className="text-center">
-              <h1 className="font-display text-2xl font-bold text-foreground">
-                {isLogin ? "Entrar" : "Criar conta"}
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {isLogin
-                  ? "Acesse sua área de membros"
-                  : "Crie seu Link na Bio agora"}
-              </p>
-            </div>
+    <div className="min-h-screen w-screen relative overflow-hidden flex flex-col items-center justify-center bg-[#0A1520] p-4">
+      <img
+        src={biobrLogo}
+        alt="VtrineBio"
+        className="h-8 w-auto mb-6 animate-fade-in"
+      />
+
+      <div className="w-full max-w-[460px] rounded-xl bg-white p-6 sm:p-10 shadow-2xl animate-scale-in">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold text-black">
+            {isLogin ? "Bem-vindo!" : "Criar conta"}
+          </h1>
+          <p className="text-black/60 mt-1">
+            {isLogin
+              ? "Acesse sua conta para continuar."
+              : "Crie seu Link na Bio agora."}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-sm font-medium text-black">
+              E-mail
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="seu@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className={inputClass}
+            />
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-12 rounded-xl"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-black">
+              Senha
+            </label>
+            <div className="relative">
+              <input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="h-12 rounded-xl"
+                className={`${inputClass} pr-10`}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-black/60 hover:text-black transition-colors"
+                aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
             </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full h-12 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-glow transition-all duration-300 hover:shadow-glow-lg"
-            >
-              {loading ? "Carregando..." : isLogin ? "Entrar" : "Criar conta"}
-            </Button>
-          </form>
-
-          {/* Toggle */}
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              {isLogin
-                ? "Não tem conta? Criar agora"
-                : "Já tem conta? Fazer login"}
-            </button>
           </div>
 
-          {/* Back to home */}
-          <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => navigate("/")}
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Voltar ao início
-            </button>
-          </div>
-        </div>
+          {isLogin && (
+            <div className="text-right">
+              <button
+                type="button"
+                className="text-sm text-black/60 hover:text-black transition-colors"
+              >
+                Esqueci minha senha
+              </button>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-12 rounded-full text-white font-semibold flex items-center justify-center gap-2 transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: "#0349FD" }}
+          >
+            {loading ? (
+              "Carregando..."
+            ) : (
+              <>
+                {isLogin ? "Fazer login" : "Criar conta"}
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </button>
+        </form>
       </div>
+
+      <p className="mt-6 text-sm text-white/70 text-center">
+        {isLogin ? "Não tem conta? " : "Já tem conta? "}
+        <button
+          type="button"
+          onClick={() => setIsLogin(!isLogin)}
+          className="text-white underline"
+        >
+          {isLogin ? "Criar agora" : "Fazer login"}
+        </button>
+      </p>
     </div>
   );
 };

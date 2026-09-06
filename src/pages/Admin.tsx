@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEditorState, EditorLink } from "@/hooks/useEditorState";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ProfileHeaderCard } from "@/components/admin/ProfileHeaderCard";
+import { SocialIconsSection } from "@/components/admin/SocialIconsSection";
 import { AdminLinksList } from "@/components/admin/AdminLinksList";
 import { EditorPreview } from "@/components/editor/EditorPreview";
 import { ButtonEditDrawer } from "@/components/editor/ButtonEditDrawer";
@@ -177,15 +178,6 @@ const Admin = () => {
           {/* Profile Header Card */}
           <ProfileHeaderCard
             profile={profile}
-            socials={socials}
-            platforms={SOCIAL_PLATFORMS}
-            onSelectPlatform={(platform, existingSocial) => {
-              setSelectedPlatform(platform);
-              setShowAddSocial(true);
-            }}
-            onDeleteSocial={(linkId) => {
-              deleteLink(linkId);
-            }}
             onUpdateUsername={(newUsername) => updateProfile({ username: newUsername })}
             onUpdateHandle={(newHandle) => updateProfile({ handle: newHandle })}
           />
@@ -215,6 +207,19 @@ const Admin = () => {
               <p className="text-sm">Clique em "Adicionar Link" para começar.</p>
             </div>
           )}
+
+          {/* Social Icons Section */}
+          <SocialIconsSection
+            socials={socials}
+            platforms={SOCIAL_PLATFORMS}
+            onSelectPlatform={(platform, existingSocial) => {
+              setSelectedPlatform(platform);
+              setShowAddSocial(true);
+            }}
+            onDeleteSocial={(linkId) => {
+              deleteLink(linkId);
+            }}
+          />
         </div>
       </main>
 

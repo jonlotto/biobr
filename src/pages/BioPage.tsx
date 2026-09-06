@@ -403,10 +403,10 @@ const BioPage = () => {
         <div className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="text-white text-sm">Criado por</span>
-            <img src={biobrLogo} alt="BioBR" className="h-5" />
+            <img src={biobrLogo} alt="VtrineBio" className="h-5" />
           </div>
           <span className="text-white/60 text-xs">
-            © BioBR 2026 - Todos os direitos reservados
+            © VtrineBio 2026 - Todos os direitos reservados
           </span>
         </div>
       </footer>

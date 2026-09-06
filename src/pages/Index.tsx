@@ -22,7 +22,7 @@ const Index = () => {
         {/* Header */}
         <header className="flex items-center justify-between p-4 md:p-6">
           <div className="flex items-center gap-2">
-            <img src={biobrLogo} alt="BioBR" className="h-8" />
+            <img src={biobrLogo} alt="VtrineBio" className="h-8" />
           </div>
           <Button
             onClick={() => navigate("/auth")}
@@ -76,7 +76,7 @@ const Index = () => {
 
         {/* Footer */}
         <footer className="text-center py-8 text-gray-500 text-sm">
-          <p>© 2026 BioBR. Todos os direitos reservados.</p>
+          <p>© 2026 VtrineBio. Todos os direitos reservados.</p>
         </footer>
       </div>
     </div>

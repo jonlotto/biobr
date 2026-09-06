@@ -88,7 +88,7 @@ export function NotificationWelcomeModal({ userId }: NotificationWelcomeModalPro
             Quer receber notificações?
           </DialogTitle>
           <DialogDescription className="text-base">
-            Receba avisos importantes sobre visitas ao seu perfil e atualizações do BioBR.
+            Receba avisos importantes sobre visitas ao seu perfil e atualizações do VtrineBio.
           </DialogDescription>
         </DialogHeader>
 
