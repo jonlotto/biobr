@@ -41,7 +41,7 @@ export function ButtonsTab({
     onSelectLink(link.id);
   };
 
-  const handleSave = (data: Pick<EditorLink, "title" | "url" | "icon" | "isActive"> & { thumbnailUrl?: string | null }) => {
+  const handleSave = (data: Pick<EditorLink, "title" | "url" | "icon" | "iconVariant" | "isActive"> & { thumbnailUrl?: string | null }) => {
     if (editingLink) {
       onUpdate(editingLink.id, { ...data, thumbnailUrl: data.thumbnailUrl ?? null });
     } else {
@@ -111,6 +111,7 @@ export function ButtonsTab({
         onClose={handleClose}
         onSave={handleSave}
         initialData={editingLink}
+        isNew={!editingLink}
       />
     </>
   );

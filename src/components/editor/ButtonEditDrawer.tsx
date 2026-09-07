@@ -1,53 +1,42 @@
 import { useEffect, useState, useRef } from "react";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EditorLink } from "@/hooks/useEditorState";
+import { WHATSAPP_DEFAULT_ICON_VALUE, getLinkIconComponent, getLinkIconEntry, type IconVariant } from "@/lib/linkIcons";
+import { IconLibraryModal } from "@/components/editor/IconLibraryModal";
 import { cn } from "@/lib/utils";
-import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
-import { LinkIcon } from "@/components/icons/LinkIcon";
-import { CartIcon } from "@/components/icons/CartIcon";
-import { StoreIcon } from "@/components/icons/StoreIcon";
-import { StarIcon } from "@/components/icons/StarIcon";
-import { LocationIcon } from "@/components/icons/LocationIcon";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, X, Image as ImageIcon } from "lucide-react";
-
-const WHATSAPP_ICON_VALUE = "whatsapp-icon";
-const LINK_ICON_VALUE = "link-icon";
-const CART_ICON_VALUE = "cart-icon";
-const STORE_ICON_VALUE = "store-icon";
-const STAR_ICON_VALUE = "star-icon";
-const LOCATION_ICON_VALUE = "location-icon";
-
-const ICONS = [
-  { value: "", label: "Nenhum" },
-  { value: WHATSAPP_ICON_VALUE, label: "WhatsApp" },
-  { value: LINK_ICON_VALUE, label: "Link" },
-  { value: CART_ICON_VALUE, label: "Carrinho" },
-  { value: STORE_ICON_VALUE, label: "Loja" },
-  { value: STAR_ICON_VALUE, label: "Estrela" },
-  { value: LOCATION_ICON_VALUE, label: "Localização" },
-];
+import { Loader2, Upload, X, Image as ImageIcon, ChevronRight } from "lucide-react";
 
 interface ButtonEditDrawerProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Pick<EditorLink, "title" | "url" | "icon" | "isActive"> & { thumbnailUrl?: string | null }) => void;
+  onSave: (data: Pick<EditorLink, "title" | "url" | "icon" | "iconVariant" | "isActive"> & { thumbnailUrl?: string | null }) => void;
   initialData?: EditorLink | null;
+  /**
+   * Whether this is a brand-new button rather than an edit of an existing
+   * one. Some callers (e.g. AdminLayout) create the link in local state
+   * immediately on "Adicionar Link" and only then open this dialog to fill
+   * it in, so `initialData` is already populated even for a new button -
+   * `initialData` alone can't tell create from edit there. Defaults to
+   * `!initialData` for callers that genuinely don't have a link yet until
+   * this dialog saves (e.g. ButtonsTab).
+   */
+  isNew?: boolean;
 }
 
 export function ButtonEditDrawer({
@@ -55,7 +44,9 @@ export function ButtonEditDrawer({
   onClose,
   onSave,
   initialData,
+  isNew,
 }: ButtonEditDrawerProps) {
+  const isCreating = isNew ?? !initialData;
   const { user } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +54,7 @@ export function ButtonEditDrawer({
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [icon, setIcon] = useState("");
+  const [iconVariant, setIconVariant] = useState<IconVariant>("brand");
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ title?: string; url?: string; whatsapp?: string }>({});
   const [uploading, setUploading] = useState(false);
@@ -74,6 +66,7 @@ export function ButtonEditDrawer({
 
   // Icon/Image tab
   const [mediaTab, setMediaTab] = useState<"icon" | "image">("icon");
+  const [iconLibraryOpen, setIconLibraryOpen] = useState(false);
 
   // Only (re)initialize the form when the drawer actually opens, not on every
   // change to `initialData` while it stays open — the underlying link's id can
@@ -92,6 +85,7 @@ export function ButtonEditDrawer({
     if (initialData) {
       setTitle(initialData.title);
       setIcon(initialData.icon || "");
+      setIconVariant(initialData.iconVariant || "brand");
       setThumbnailUrl(initialData.thumbnailUrl || null);
       
       // Set media tab based on existing data
@@ -129,6 +123,7 @@ export function ButtonEditDrawer({
       setTitle("");
       setUrl("");
       setIcon("");
+      setIconVariant("brand");
       setThumbnailUrl(null);
       setButtonType("link");
       setWhatsappNumber("");
@@ -201,6 +196,7 @@ export function ButtonEditDrawer({
 
       setThumbnailUrl(urlData.publicUrl);
       setIcon(""); // Clear icon when image is uploaded
+      setIconVariant("brand");
       
       toast({
         title: "Imagem carregada",
@@ -265,29 +261,29 @@ export function ButtonEditDrawer({
       finalUrl = url.trim();
     }
 
+    const savingIcon = mediaTab === "image" ? null : (icon || null);
     onSave({
       title: title.trim(),
       url: finalUrl,
-      icon: mediaTab === "image" ? null : (icon || null),
+      icon: savingIcon,
+      iconVariant: savingIcon ? iconVariant : null,
       isActive: initialData?.isActive ?? true,
       thumbnailUrl: mediaTab === "image" ? thumbnailUrl : null,
     });
   };
 
   return (
-    <Drawer open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DrawerContent>
-        <div className="mx-auto w-full max-w-sm max-h-[85vh] overflow-auto">
-          <DrawerHeader>
-            <DrawerTitle>
-              {initialData ? "Editar Botão" : "Novo Botão"}
-            </DrawerTitle>
-            <DrawerDescription>
-              Configure as informações do botão.
-            </DrawerDescription>
-          </DrawerHeader>
+    <>
+      <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{isCreating ? "Novo Botão" : "Editar Botão"}</DialogTitle>
+            <DialogDescription>
+              {isCreating ? "Configure as informações do novo botão." : "Configure as informações do botão."}
+            </DialogDescription>
+          </DialogHeader>
 
-          <div className="p-4 space-y-4">
+          <div className="space-y-4">
             {/* Title */}
             <div className="space-y-2">
               <Label htmlFor="title">Título *</Label>
@@ -316,7 +312,8 @@ export function ButtonEditDrawer({
                   setErrors({});
                   // Auto-set WhatsApp icon when switching to WhatsApp
                   if (newType === "whatsapp" && !icon && !thumbnailUrl) {
-                    setIcon(WHATSAPP_ICON_VALUE);
+                    setIcon(WHATSAPP_DEFAULT_ICON_VALUE);
+                    setIconVariant("brand");
                     setMediaTab("icon");
                   }
                 }}
@@ -408,36 +405,23 @@ export function ButtonEditDrawer({
                 </TabsList>
 
                 <TabsContent value="icon" className="mt-3">
-                  <div className="flex gap-2 justify-start flex-wrap">
-                    {ICONS.map((i) => {
-                      const isSelected = icon === i.value || (icon === "" && i.value === "");
-                      return (
-                        <button
-                          key={i.value || "none"}
-                          type="button"
-                          onClick={() => {
-                            setIcon(i.value);
-                            setThumbnailUrl(null);
-                          }}
-                          className={cn(
-                            "w-10 h-10 flex items-center justify-center border-2 rounded-lg transition-all",
-                            isSelected
-                              ? "border-primary bg-primary/10"
-                              : "border-muted hover:border-muted-foreground/50"
-                          )}
-                          title={i.label}
-                        >
-                          {i.value === "" && <span className="text-xs text-muted-foreground">—</span>}
-                          {i.value === WHATSAPP_ICON_VALUE && <WhatsAppIcon className="w-5 h-5" />}
-                          {i.value === LINK_ICON_VALUE && <LinkIcon className="w-5 h-5" />}
-                          {i.value === CART_ICON_VALUE && <CartIcon className="w-5 h-5" />}
-                          {i.value === STORE_ICON_VALUE && <StoreIcon className="w-5 h-5" />}
-                          {i.value === STAR_ICON_VALUE && <StarIcon className="w-5 h-5" />}
-                          {i.value === LOCATION_ICON_VALUE && <LocationIcon className="w-5 h-5" />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {(() => {
+                    const SelectedIcon = getLinkIconComponent(icon);
+                    const selectedLabel = getLinkIconEntry(icon)?.label;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setIconLibraryOpen(true)}
+                        className="flex w-full items-center gap-3 rounded-lg border-2 border-muted p-3 text-left transition-all hover:border-muted-foreground/50"
+                      >
+                        <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", iconVariant === "light" ? "bg-neutral-900" : "bg-muted")}>
+                          {SelectedIcon ? <SelectedIcon className="h-5 w-5" variant={iconVariant} /> : <span className="text-xs text-muted-foreground">—</span>}
+                        </span>
+                        <span className="flex-1 text-sm font-medium">{selectedLabel || "Escolher ícone"}</span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    );
+                  })()}
                 </TabsContent>
 
                 <TabsContent value="image" className="mt-3">
@@ -489,14 +473,25 @@ export function ButtonEditDrawer({
             </div>
           </div>
 
-          <DrawerFooter>
+          <DialogFooter>
             <Button onClick={handleSave}>Salvar</Button>
-            <DrawerClose asChild>
+            <DialogClose asChild>
               <Button variant="outline">Cancelar</Button>
-            </DrawerClose>
-          </DrawerFooter>
-        </div>
-      </DrawerContent>
-    </Drawer>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <IconLibraryModal
+        open={iconLibraryOpen}
+        onClose={() => setIconLibraryOpen(false)}
+        onSelect={(value, variant) => {
+          setIcon(value);
+          setIconVariant(variant);
+          setThumbnailUrl(null);
+          setIconLibraryOpen(false);
+        }}
+      />
+    </>
   );
 }

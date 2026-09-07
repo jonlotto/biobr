@@ -80,6 +80,13 @@ export default function AdminLayout() {
   // Snapshot of the social link being edited, if the clicked platform already
   // has one configured — used only to pre-fill the modal's input value.
   const [editingSocial, setEditingSocial] = useState<EditorLink | null>(null);
+  // handleAddLink creates the link in local state immediately (so autosave
+  // can persist it as the user types) and opens the drawer pointed at that
+  // same id - so by the time the drawer renders, `selectedLink` is already
+  // populated and can't tell "new" from "editing an existing link" on its
+  // own. This tracks which of the two just happened, so the drawer's
+  // title/subtitle can say the right thing.
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
 
   // The design view has no autosave - warn before discarding unsaved edits.
   // Confirming actually reverts the local state too, otherwise it would sit
@@ -147,6 +154,7 @@ export default function AdminLayout() {
       title: "Novo Link",
       url: "https://",
       icon: null,
+      iconVariant: null,
       thumbnailUrl: null,
       linkType: "button",
       style: "filled",
@@ -156,6 +164,7 @@ export default function AdminLayout() {
       buttonBorderRadius: "rounded-xl",
     });
     setSelectedLinkId(newId);
+    setIsCreatingLink(true);
   };
 
   const handleSaveSocial = (username: string) => {
@@ -184,6 +193,7 @@ export default function AdminLayout() {
         title: selectedPlatform.name,
         url,
         icon: selectedPlatform.icon,
+        iconVariant: null,
         thumbnailUrl: null,
         linkType: "social",
         style: "filled",
@@ -202,16 +212,18 @@ export default function AdminLayout() {
     updateLink(id, { isActive });
   };
 
-  const handleSaveLink = (data: Pick<EditorLink, "title" | "url" | "icon" | "isActive"> & { thumbnailUrl?: string | null }) => {
+  const handleSaveLink = (data: Pick<EditorLink, "title" | "url" | "icon" | "iconVariant" | "isActive"> & { thumbnailUrl?: string | null }) => {
     if (selectedLinkId) {
       updateLink(selectedLinkId, { ...data, thumbnailUrl: data.thumbnailUrl ?? null });
       setSelectedLinkId(null);
+      setIsCreatingLink(false);
     }
   };
 
   const handlePreviewClick = (type: string, linkId?: string) => {
     if (type === "link" && linkId) {
       setSelectedLinkId(linkId);
+      setIsCreatingLink(false);
     } else if (type === "avatar" || type === "username" || type === "bio") {
       navigate("/editor");
     }
@@ -274,7 +286,10 @@ export default function AdminLayout() {
                 links={buttons}
                 onReorder={reorderLinks}
                 onToggle={handleToggleLink}
-                onEdit={setSelectedLinkId}
+                onEdit={(id) => {
+                  setSelectedLinkId(id);
+                  setIsCreatingLink(false);
+                }}
                 onDelete={deleteLink}
                 onDuplicate={duplicateLink}
               />
@@ -336,9 +351,13 @@ export default function AdminLayout() {
       {/* Button Edit Drawer - only for links view */}
       <ButtonEditDrawer
         open={!!selectedLinkId}
-        onClose={() => setSelectedLinkId(null)}
+        onClose={() => {
+          setSelectedLinkId(null);
+          setIsCreatingLink(false);
+        }}
         onSave={handleSaveLink}
         initialData={selectedLink || null}
+        isNew={isCreatingLink}
       />
 
       {/* Social Add Modal */}

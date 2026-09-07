@@ -2,6 +2,9 @@ import { useState } from "react";
 import { ImageIcon, Upload, X, Crop, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { EditorProfile } from "@/hooks/useEditorState";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,13 +40,17 @@ function LayoutThumb({ layoutId, avatarUrl, primaryColor }: { layoutId: string; 
     );
   }
 
-  if (layoutId === "banner-full") {
+  if (layoutId === "banner-wave") {
     return (
-      <div className="relative flex h-full w-full flex-col justify-end" style={{ backgroundColor: primaryColor }}>
-        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 to-transparent" />
-        <div className="relative z-10 flex items-center gap-1 p-1">
-          <div className="h-3 w-3 shrink-0 overflow-hidden rounded-full border border-white/70">{avatarNode}</div>
-          <div className="h-1 w-6 rounded-full bg-white/80" />
+      <div className="relative flex h-full w-full flex-col">
+        <div className="relative h-[55%] w-full overflow-hidden" style={{ backgroundColor: primaryColor }}>
+          <svg viewBox="0 0 100 20" preserveAspectRatio="none" className="absolute bottom-[-1px] left-0 h-3 w-full">
+            <path d="M0,20 Q50,0 100,20 L100,20 L0,20 Z" fill="white" />
+          </svg>
+        </div>
+        <div className="flex-1 bg-white" />
+        <div className="absolute left-1/2 top-[42%] h-6 w-6 -translate-x-1/2 overflow-hidden rounded-full border-2 border-white shadow">
+          {avatarNode}
         </div>
       </div>
     );
@@ -81,7 +88,7 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
   const [initialCropOffsetY, setInitialCropOffsetY] = useState(0);
 
   const template = templates.find((t) => t.slug === profile.templateSlug) || templates[0];
-  const selectedLayout = resolveHeaderLayout(profile.headerLayout, !!template.hasBanner);
+  const selectedLayout = resolveHeaderLayout(profile.headerLayout, !!template.hasBanner, !!template.hasCurvedBanner);
 
   const handleImageUpload = async (
     file: File,
@@ -197,6 +204,78 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
         </p>
       </div>
 
+      {/* Avatar Section */}
+      <div className="space-y-3">
+        <label className="text-sm font-medium">Foto de perfil</label>
+        <div className="flex items-center gap-4">
+          <div className="relative group">
+            <Avatar className="w-20 h-20 border-2 border-border">
+              <AvatarImage src={profile.avatarUrl || undefined} />
+              <AvatarFallback className="bg-muted text-muted-foreground">
+                {profile.displayName?.charAt(0) || profile.username?.charAt(0) || "?"}
+              </AvatarFallback>
+            </Avatar>
+            {profile.avatarUrl && (
+              <button
+                onClick={() => removeImage("avatar")}
+                className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground
+                           rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100
+                           transition-opacity"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          <div className="flex-1">
+            <input
+              type="file"
+              id="avatar-upload"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file, "avatar");
+              }}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isUploadingAvatar}
+              onClick={() => document.getElementById("avatar-upload")?.click()}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {isUploadingAvatar ? "Enviando..." : "Alterar foto"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Display Name */}
+      <div className="space-y-2">
+        <Label htmlFor="displayName">Nome de exibição</Label>
+        <Input
+          id="displayName"
+          value={profile.displayName}
+          onChange={(e) => onUpdate({ displayName: e.target.value })}
+          placeholder="Seu nome"
+        />
+      </div>
+
+      {/* Bio */}
+      <div className="space-y-2">
+        <Label htmlFor="bio">Bio</Label>
+        <Textarea
+          id="bio"
+          value={profile.bio}
+          onChange={(e) => onUpdate({ bio: e.target.value })}
+          placeholder="Uma breve descrição sobre você..."
+          rows={3}
+        />
+        <p className="text-xs text-muted-foreground">
+          {profile.bio.length}/150 caracteres
+        </p>
+      </div>
+
       {/* Layout Section */}
       <div className="space-y-3">
         <label className="text-sm font-medium">Layout</label>
@@ -306,52 +385,6 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
         </div>
       </div>
       )}
-
-      {/* Avatar Section */}
-      <div className="space-y-3">
-        <label className="text-sm font-medium">Foto de perfil</label>
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <Avatar className="w-20 h-20 border-2 border-border">
-              <AvatarImage src={profile.avatarUrl || undefined} />
-              <AvatarFallback className="bg-muted text-muted-foreground">
-                {profile.displayName?.charAt(0) || profile.username?.charAt(0) || "?"}
-              </AvatarFallback>
-            </Avatar>
-            {profile.avatarUrl && (
-              <button
-                onClick={() => removeImage("avatar")}
-                className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground
-                           rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100
-                           transition-opacity"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-          <div className="flex-1">
-            <input
-              type="file"
-              id="avatar-upload"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageUpload(file, "avatar");
-              }}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isUploadingAvatar}
-              onClick={() => document.getElementById("avatar-upload")?.click()}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {isUploadingAvatar ? "Enviando..." : "Alterar foto"}
-            </Button>
-          </div>
-        </div>
-      </div>
 
       <BannerCropModal
         open={cropModalOpen}

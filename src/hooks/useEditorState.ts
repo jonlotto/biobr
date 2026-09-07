@@ -3,12 +3,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { HeaderLayout } from "@/lib/headerLayouts";
+import type { ButtonLayout } from "@/lib/buttonLayouts";
+import type { IconVariant } from "@/lib/linkIcons";
 
 export interface EditorLink {
   id: string;
   title: string;
   url: string;
   icon: string | null;
+  // Color variant the icon renders in ("brand"/"dark"/"light" - see
+  // IconVariant); null when there's no icon, or for rows saved before this
+  // existed (falls back to "brand" at render time).
+  iconVariant: IconVariant | null;
   thumbnailUrl: string | null;
   linkType: "button" | "social";
   style: "filled" | "outline";
@@ -34,11 +40,21 @@ export interface EditorProfile {
   // own hasBanner flag" (see resolveHeaderLayout), so older profiles keep
   // rendering the way they always have.
   headerLayout: HeaderLayout | null;
+  // Button layout - null means "not chosen yet, fall back to pill-square-icon"
+  // (see resolveButtonLayout), so older profiles keep rendering the way the
+  // button list always looked.
+  buttonLayout: ButtonLayout | null;
   // Global customization
   globalButtonBgColor: string | null;
+  // 0-100, null means "not chosen yet, fall back to 100" (fully opaque) -
+  // see hexToRgba usage in the renderers.
+  globalButtonBgOpacity: number | null;
   globalButtonTextColor: string | null;
   globalBackgroundColor: string | null;
   globalBackgroundImage: string | null;
+  // Kept for backward compatibility with rows saved before each button
+  // layout started embedding its own fixed style/shape - no longer editable
+  // in the UI (see ButtonsSection) and no longer read by the renderers.
   globalButtonStyle: "filled" | "outline";
   globalButtonBorderRadius: string;
   // Typography customization
@@ -82,12 +98,14 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
       displayName: "",
       bio: "",
       headerLayout: null,
+      buttonLayout: null,
       globalButtonBgColor: null,
+      globalButtonBgOpacity: null,
       globalButtonTextColor: null,
       globalBackgroundColor: null,
       globalBackgroundImage: null,
       globalButtonStyle: "filled",
-      globalButtonBorderRadius: "rounded-xl",
+      globalButtonBorderRadius: "rounded-full",
       titleFont: "Inter",
       titleColor: null,
       titleSize: "large",
@@ -154,12 +172,14 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           displayName: profile?.display_name || "",
           bio: profile?.bio || "",
           headerLayout: ((profile as any)?.header_layout as EditorProfile["headerLayout"]) || null,
+          buttonLayout: ((profile as any)?.button_layout as EditorProfile["buttonLayout"]) || null,
           globalButtonBgColor: profile?.global_button_bg_color || null,
+          globalButtonBgOpacity: (profile as any)?.global_button_bg_opacity ?? null,
           globalButtonTextColor: profile?.global_button_text_color || null,
           globalBackgroundColor: profile?.global_background_color || null,
           globalBackgroundImage: (profile as any)?.global_background_image || null,
           globalButtonStyle: (profile?.global_button_style as "filled" | "outline") || "filled",
-          globalButtonBorderRadius: profile?.global_button_border_radius || "rounded-xl",
+          globalButtonBorderRadius: profile?.global_button_border_radius || "rounded-full",
           titleFont: (profile as any)?.title_font || "Inter",
           titleColor: (profile as any)?.title_color || null,
           titleSize: ((profile as any)?.title_size as "small" | "large") || "large",
@@ -169,6 +189,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           title: link.title,
           url: link.url,
           icon: link.icon,
+          iconVariant: ((link as any).icon_variant as IconVariant | null) || null,
           thumbnailUrl: (link as any).thumbnail_url || null,
           linkType: (link.link_type as "button" | "social") || "button",
           style: (link.style as "filled" | "outline") || "filled",
@@ -230,7 +251,9 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           display_name: currentState.profile.displayName,
           bio: currentState.profile.bio,
           header_layout: currentState.profile.headerLayout,
+          button_layout: currentState.profile.buttonLayout,
           global_button_bg_color: currentState.profile.globalButtonBgColor,
+          global_button_bg_opacity: currentState.profile.globalButtonBgOpacity,
           global_button_text_color: currentState.profile.globalButtonTextColor,
           global_background_color: currentState.profile.globalBackgroundColor,
           global_background_image: currentState.profile.globalBackgroundImage,
@@ -270,6 +293,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           title: link.title,
           url: link.url,
           icon: link.icon,
+          icon_variant: link.iconVariant,
           thumbnail_url: link.thumbnailUrl,
           link_type: link.linkType,
           style: link.style,

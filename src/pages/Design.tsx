@@ -8,7 +8,6 @@ import { DesignSidebar, SECTIONS } from "@/components/design/DesignSidebar";
 import { EditorPreview } from "@/components/editor/EditorPreview";
 import { HeaderSection } from "@/components/design/sections/HeaderSection";
 import { ThemeSection } from "@/components/design/sections/ThemeSection";
-import { WallpaperSection } from "@/components/design/sections/WallpaperSection";
 import { TextSection } from "@/components/design/sections/TextSection";
 import { ButtonsSection } from "@/components/design/sections/ButtonsSection";
 import { Loader2, Check, Cloud } from "lucide-react";
@@ -107,10 +106,6 @@ export default function Design() {
 
           <section id="theme" className="scroll-mt-20">
             <ThemeSection profile={profile} onUpdate={updateProfile} />
-          </section>
-
-          <section id="wallpaper" className="scroll-mt-20">
-            <WallpaperSection profile={profile} onUpdate={updateProfile} />
           </section>
 
           <section id="text" className="scroll-mt-20">

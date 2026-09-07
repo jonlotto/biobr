@@ -18,6 +18,7 @@ export function ThemeSection({ profile, onUpdate }: ThemeSectionProps) {
       // Reset ALL custom settings to use the new template's defaults
       globalBackgroundColor: null,
       globalButtonBgColor: null,
+      globalButtonBgOpacity: null,
       globalButtonTextColor: null,
       globalButtonStyle: "filled",
       globalButtonBorderRadius: template.styles.buttonStyle,

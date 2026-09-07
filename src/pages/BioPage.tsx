@@ -2,14 +2,16 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import ProfileHeader from "@/components/ProfileHeader";
-import LinkCard, { renderIcon } from "@/components/LinkCard";
-import { Link2 } from "lucide-react";
+import { renderIcon } from "@/components/LinkCard";
+import { Link2, ChevronRight } from "lucide-react";
 import { templates } from "@/data/templates";
 import biobrLogo from "@/assets/biobr-logo.png";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { extractSubdomain } from "@/utils/subdomain";
 import { resolveHeaderLayout } from "@/lib/headerLayouts";
+import { resolveButtonLayout } from "@/lib/buttonLayouts";
+import { hexToRgba } from "@/lib/color";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
@@ -131,8 +133,11 @@ const BioPage = () => {
   }
 
   const template = templates.find((t) => t.slug === profile?.template_slug) || templates[0];
-  const hasCurvedBanner = template.hasCurvedBanner;
-  const headerLayout = resolveHeaderLayout((profile as any)?.header_layout ?? null, !!template.hasBanner);
+  const headerLayout = resolveHeaderLayout(
+    (profile as any)?.header_layout ?? null,
+    !!template.hasBanner,
+    !!template.hasCurvedBanner,
+  );
 
   // Border color used to separate the avatar from the banner behind it -
   // matches the page's own solid background color so the avatar ring reads
@@ -150,6 +155,25 @@ const BioPage = () => {
   // Separate links by type
   const buttons = links.filter(l => l.link_type !== "social");
   const socials = links.filter(l => l.link_type === "social");
+
+  const resolvedButtonLayout = resolveButtonLayout((profile as any)?.button_layout ?? null);
+  const linkBgColor = profile?.global_button_bg_color || template.styles.primaryColor;
+  const linkBgOpacity = (profile as any)?.global_button_bg_opacity ?? 100;
+  const linkTextColor = profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined);
+  // Style is fixed to filled, and shape is fixed per button layout (each one
+  // already embeds its own visual form) - these no longer read
+  // profile.global_button_style/border_radius (kept on the profile only for
+  // backward compatibility with old rows). linkBorderRadius here is the
+  // default full-pill radius (overlap-alternate, pill-round-icon);
+  // pill-square-icon overrides it to a small radius in renderPillLinks
+  // below, so the two "pill" layouts read as visually distinct.
+  const linkBorderRadius = "rounded-full";
+  const linkFontFamily = (profile as any)?.title_font || "Inter";
+
+  const linkFillStyle: React.CSSProperties = {
+    backgroundColor: hexToRgba(linkBgColor, linkBgOpacity),
+    color: linkTextColor,
+  };
 
   // Build background style with global color/image override or template image
   const globalBgColor = profile?.global_background_color;
@@ -187,31 +211,170 @@ const BioPage = () => {
   const hasCustomBackground = !!globalBgImage || !!globalBgColor;
   const hasTemplateImageBg = template.styles.backgroundType === "image" && template.styles.backgroundImage;
 
+  const renderPillLinks = (shape: "square" | "round") => {
+    // "square" gets small rounded corners (not a full pill) so it reads
+    // visually distinct from "round", whose button IS a full pill/capsule.
+    const pillRadius = shape === "round" ? linkBorderRadius : "rounded-none";
+    return (
+    <div className="space-y-4">
+      {buttons.map((link, index) => {
+        const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
+        const hasMedia = !!(thumbnailUrl || link.icon);
+        return (
+          <a
+            key={link.id}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "group relative flex w-full items-center justify-center px-6 py-4 font-medium transition-all hover:scale-[1.02] animate-slide-up opacity-0",
+              pillRadius,
+            )}
+            style={{ animationDelay: `${index * 100}ms`, fontFamily: linkFontFamily, ...linkFillStyle }}
+          >
+            {hasMedia && (
+              <span
+                className={cn(
+                  "absolute left-2 flex h-10 w-10 items-center justify-center overflow-hidden",
+                  shape === "round" ? "rounded-full" : "rounded-none",
+                )}
+              >
+                {thumbnailUrl ? <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderIcon(link.icon || undefined, "w-5 h-5 shrink-0", (link as any).icon_variant || undefined)}
+              </span>
+            )}
+            <span className="text-sm font-medium">{link.title}</span>
+          </a>
+        );
+      })}
+    </div>
+    );
+  };
+
+  const renderOverlapAlternateLinks = () => (
+    <div className="space-y-5">
+      {buttons.map((link, index) => {
+        const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
+        const hasMedia = !!(thumbnailUrl || link.icon);
+        const sideLeft = index % 2 === 0;
+        return (
+          <a
+            key={link.id}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "group relative flex w-full items-center justify-center px-6 py-4 font-medium transition-all hover:scale-[1.02] animate-slide-up opacity-0",
+              linkBorderRadius,
+            )}
+            style={{ animationDelay: `${index * 100}ms`, fontFamily: linkFontFamily, ...linkFillStyle }}
+          >
+            {hasMedia && (
+              <span
+                className={cn(
+                  "absolute top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full shadow-md",
+                  sideLeft ? "-left-3" : "-right-3",
+                )}
+                style={{ border: `4px solid ${pageBorderColor}`, ...linkFillStyle }}
+              >
+                {thumbnailUrl ? <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderIcon(link.icon || undefined, "w-5 h-5 shrink-0", (link as any).icon_variant || undefined)}
+              </span>
+            )}
+            <span className="text-sm font-medium">{link.title}</span>
+          </a>
+        );
+      })}
+    </div>
+  );
+
+  const renderCardOverlapAlternateLinks = () => (
+    // Wide horizontal pill, fully rounded ends. The icon sits in its own
+    // circle, mostly embedded at one end but slightly larger than the
+    // button's own height, so it pokes out a bit on every outer side (top,
+    // bottom, and past the edge) instead of just overlapping sideways.
+    // Minimal by design: no drop shadow, no extra ornamentation beyond the
+    // contrast ring that separates the icon from the button underneath it.
+    <div className="space-y-4">
+      {buttons.map((link, index) => {
+        const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
+        const hasMedia = !!(thumbnailUrl || link.icon);
+        const sideLeft = index % 2 === 0;
+        return (
+          <a
+            key={link.id}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "relative flex w-full items-center rounded-full transition-all hover:scale-[1.01] animate-slide-up opacity-0",
+              sideLeft ? "pl-16 pr-6" : "pl-6 pr-16",
+            )}
+            style={{ height: 56, animationDelay: `${index * 100}ms`, fontFamily: linkFontFamily, ...linkFillStyle }}
+          >
+            <span className="flex-1 truncate text-left text-sm font-medium">{link.title}</span>
+
+            {hasMedia && (
+              <span
+                className={cn(
+                  "absolute top-1/2 flex h-[68px] w-[68px] -translate-y-1/2 items-center justify-center overflow-hidden rounded-full",
+                  sideLeft ? "-left-2" : "-right-2",
+                )}
+                style={{ border: `3px solid ${pageBorderColor}`, ...linkFillStyle }}
+              >
+                {thumbnailUrl ? <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderIcon(link.icon || undefined, "w-5 h-5 shrink-0", (link as any).icon_variant || undefined)}
+              </span>
+            )}
+          </a>
+        );
+      })}
+    </div>
+  );
+
+  const renderUnifiedCardLinks = () => (
+    <div className={cn("overflow-hidden rounded-2xl shadow-sm", template.styles.cardBg)}>
+      {buttons.map((link, index) => {
+        const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
+        const hasMedia = !!(thumbnailUrl || link.icon);
+        const isLast = index === buttons.length - 1;
+        return (
+          <a
+            key={link.id}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-black/5",
+              !isLast && "border-b border-border/60",
+            )}
+            style={{ fontFamily: linkFontFamily }}
+          >
+            {hasMedia && (
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg" style={linkFillStyle}>
+                {thumbnailUrl ? <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderIcon(link.icon || undefined, "w-5 h-5 shrink-0", (link as any).icon_variant || undefined)}
+              </span>
+            )}
+            <span className={cn("flex-1 truncate text-sm font-medium", template.styles.textColor)}>{link.title}</span>
+            <ChevronRight className={cn("h-4 w-4 shrink-0 opacity-50", template.styles.textColor)} />
+          </a>
+        );
+      })}
+    </div>
+  );
+
   const renderLinksAndSocials = () => (
     <>
-      <div className="space-y-4">
-        {buttons.length === 0 && socials.length === 0 ? (
-          <div className="text-center py-8 animate-fade-in">
-            <p className="text-muted-foreground">Nenhum link disponível ainda.</p>
-          </div>
-        ) : (
-          buttons.map((link, index) => (
-            <LinkCard
-              key={link.id}
-              title={link.title}
-              url={link.url}
-              icon={link.icon || undefined}
-              thumbnailUrl={(link as any).thumbnail_url}
-              delay={index * 100}
-              buttonBgColor={profile?.global_button_bg_color || template.styles.primaryColor}
-              buttonTextColor={profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined)}
-              buttonBorderRadius={profile?.global_button_border_radius || undefined}
-              buttonStyle={(profile?.global_button_style as "filled" | "outline") || "filled"}
-              fontFamily={(profile as any)?.title_font || "Inter"}
-            />
-          ))
-        )}
-      </div>
+      {buttons.length === 0 && socials.length === 0 ? (
+        <div className="text-center py-8 animate-fade-in">
+          <p className="text-muted-foreground">Nenhum link disponível ainda.</p>
+        </div>
+      ) : buttons.length > 0 ? (
+        resolvedButtonLayout === "unified-card"
+          ? renderUnifiedCardLinks()
+          : resolvedButtonLayout === "overlap-alternate"
+            ? renderOverlapAlternateLinks()
+            : resolvedButtonLayout === "card-overlap-alternate"
+              ? renderCardOverlapAlternateLinks()
+              : renderPillLinks(resolvedButtonLayout === "pill-round-icon" ? "round" : "square")
+      ) : null}
 
       {socials.length > 0 && (
         <div className="flex justify-center gap-4 flex-wrap mt-6 animate-fade-in">
@@ -223,11 +386,11 @@ const BioPage = () => {
               rel="noopener noreferrer"
               className="w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform"
               style={{
-                backgroundColor: profile?.global_button_bg_color || template.styles.primaryColor,
+                backgroundColor: hexToRgba(linkBgColor, linkBgOpacity),
                 color: profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined),
               }}
             >
-              {renderIcon(social.icon || undefined, "w-5 h-5")}
+              {renderIcon(social.icon || undefined, "w-5 h-5", (social as any).icon_variant || undefined)}
             </a>
           ))}
         </div>
@@ -241,15 +404,17 @@ const BioPage = () => {
         className={cn("flex-1", !hasCustomBackground && !hasTemplateImageBg && template.styles.background)}
         style={backgroundStyle}
       >
-        {headerLayout === "banner" && profile ? (
-          // Banner Layout - cover image/gradient with rounded bottom corners,
-          // a large circular avatar overlapping its bottom edge. Name, bio
-          // and buttons render below, outside the banner area.
+        {(headerLayout === "banner" || headerLayout === "banner-wave") && profile ? (
+          // Banner / Banner Wave Layout - cover image/gradient with a large
+          // circular avatar overlapping its bottom edge. The base is either
+          // straight rounded corners ("banner") or a curved wave cut
+          // ("banner-wave"). Name, bio and buttons render below, outside the
+          // banner area.
           <div className="min-h-full flex flex-col items-center">
             <div className="w-full max-w-md">
               <div className="relative w-full">
                 <div
-                  className={cn("relative w-full overflow-hidden", !hasCurvedBanner && "rounded-b-[32px]")}
+                  className={cn("relative w-full overflow-hidden", headerLayout !== "banner-wave" && "rounded-b-[32px]")}
                   style={{ height: 170 }}
                 >
                   {profile.banner_url ? (
@@ -262,7 +427,7 @@ const BioPage = () => {
                     <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
                   )}
 
-                  {hasCurvedBanner && (
+                  {headerLayout === "banner-wave" && (
                     <svg
                       viewBox="0 0 320 44"
                       className="absolute bottom-[-1px] left-0 w-full h-[44px] pointer-events-none"
@@ -321,48 +486,6 @@ const BioPage = () => {
                   {renderLinksAndSocials()}
                 </div>
               </div>
-            </div>
-          </div>
-        ) : headerLayout === "banner-full" && profile ? (
-          // Banner Full Layout - the cover image/gradient fills almost the
-          // whole initial viewport, with a dark fade at its base; a small
-          // avatar, name and bio sit on top of that fade, in light text.
-          // Buttons render below, outside the image.
-          <div className="min-h-full flex flex-col items-center">
-            <div className="w-full max-w-md">
-              <div className="relative w-full overflow-hidden" style={{ height: 220 }}>
-                {profile.banner_url ? (
-                  <img src={profile.banner_url} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
-                ) : (
-                  <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-
-                <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-5 text-center">
-                  <Avatar className="w-12 h-12 border-2 border-white/70">
-                    <AvatarImage src={profile.avatar_url || undefined} />
-                    <AvatarFallback className={cn(template.styles.cardBg, template.styles.textColor)}>
-                      {(profile.display_name || profile.username)?.charAt(0) || "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <h1
-                    className="font-bold text-lg text-white drop-shadow-sm"
-                    style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
-                  >
-                    {profile.display_name || profile.username}
-                  </h1>
-                  {profile.bio && (
-                    <p
-                      className="text-sm max-w-xs text-white/90 drop-shadow-sm"
-                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
-                    >
-                      {profile.bio}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="px-4 pt-6 pb-12">{renderLinksAndSocials()}</div>
             </div>
           </div>
         ) : headerLayout === "banner-card" && profile ? (

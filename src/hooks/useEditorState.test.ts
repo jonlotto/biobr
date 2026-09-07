@@ -76,6 +76,7 @@ describe("useEditorState - add link race with autosave", () => {
         title: "Novo Link",
         url: "https://",
         icon: null,
+        iconVariant: null,
         thumbnailUrl: null,
         linkType: "button",
         style: "filled",

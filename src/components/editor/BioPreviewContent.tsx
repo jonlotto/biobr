@@ -1,84 +1,27 @@
 import type { CSSProperties } from "react";
-import { User } from "lucide-react";
+import { User, ChevronRight } from "lucide-react";
 import { templates } from "@/data/templates";
 import { EditorProfile, EditorLink } from "@/hooks/useEditorState";
 import { getProfileBackgroundStyle, hasCustomProfileBackground } from "@/lib/templateBackground";
 import { resolveHeaderLayout } from "@/lib/headerLayouts";
+import { resolveButtonLayout } from "@/lib/buttonLayouts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
-import { LinkIcon } from "@/components/icons/LinkIcon";
-import { CartIcon } from "@/components/icons/CartIcon";
-import { StoreIcon } from "@/components/icons/StoreIcon";
-import { StarIcon } from "@/components/icons/StarIcon";
-import { LocationIcon } from "@/components/icons/LocationIcon";
-import { InstagramIcon } from "@/components/icons/InstagramIcon";
-import { TikTokIcon } from "@/components/icons/TikTokIcon";
-import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
-import { TwitterIcon } from "@/components/icons/TwitterIcon";
-import { LinkedInIcon } from "@/components/icons/LinkedInIcon";
-import { EmailIcon } from "@/components/icons/EmailIcon";
-
-const WHATSAPP_ICON_VALUE = "whatsapp-icon";
-const LINK_ICON_VALUE = "link-icon";
-const CART_ICON_VALUE = "cart-icon";
-const STORE_ICON_VALUE = "store-icon";
-const STAR_ICON_VALUE = "star-icon";
-const LOCATION_ICON_VALUE = "location-icon";
-const INSTAGRAM_ICON_VALUE = "instagram-icon";
-const TIKTOK_ICON_VALUE = "tiktok-icon";
-const YOUTUBE_ICON_VALUE = "youtube-icon";
-const TWITTER_ICON_VALUE = "twitter-icon";
-const LINKEDIN_ICON_VALUE = "linkedin-icon";
-const EMAIL_ICON_VALUE = "email-icon";
+import { getLinkIconComponent, getLinkIconEntry, type IconVariant } from "@/lib/linkIcons";
+import { hexToRgba } from "@/lib/color";
 
 // Shown in the buttons area of the preview when the user hasn't added any real
 // button yet, so the empty state still demonstrates the selected theme.
 const EXAMPLE_BUTTONS: { label: string; icon: string }[] = [
-  { label: "Meu link", icon: LINK_ICON_VALUE },
-  { label: "Instagram", icon: INSTAGRAM_ICON_VALUE },
+  { label: "Meu link", icon: "link-icon" },
+  { label: "Instagram", icon: "si-instagram" },
 ];
 
-export const renderPreviewIcon = (icon: string | undefined, size: "sm" | "md" = "sm") => {
+export const renderPreviewIcon = (icon: string | undefined, size: "sm" | "md" = "sm", variant?: IconVariant) => {
   if (!icon) return null;
   const sizeClass = size === "sm" ? "w-4 h-4" : "w-5 h-5";
-
-  if (icon === WHATSAPP_ICON_VALUE) {
-    return <WhatsAppIcon className={cn(sizeClass, "shrink-0")} title="WhatsApp" />;
-  }
-  if (icon === LINK_ICON_VALUE) {
-    return <LinkIcon className="w-5 h-5 shrink-0" title="Link" />;
-  }
-  if (icon === CART_ICON_VALUE) {
-    return <CartIcon className="w-5 h-5 shrink-0" title="Carrinho" />;
-  }
-  if (icon === STORE_ICON_VALUE) {
-    return <StoreIcon className="w-5 h-5 shrink-0" title="Loja" />;
-  }
-  if (icon === STAR_ICON_VALUE) {
-    return <StarIcon className="w-5 h-5 shrink-0" title="Estrela" />;
-  }
-  if (icon === LOCATION_ICON_VALUE) {
-    return <LocationIcon className="w-5 h-5 shrink-0" title="Localização" />;
-  }
-  if (icon === INSTAGRAM_ICON_VALUE) {
-    return <InstagramIcon className={cn(sizeClass, "shrink-0")} title="Instagram" />;
-  }
-  if (icon === TIKTOK_ICON_VALUE) {
-    return <TikTokIcon className={cn(sizeClass, "shrink-0")} title="TikTok" />;
-  }
-  if (icon === YOUTUBE_ICON_VALUE) {
-    return <YouTubeIcon className={cn(sizeClass, "shrink-0")} title="YouTube" />;
-  }
-  if (icon === TWITTER_ICON_VALUE) {
-    return <TwitterIcon className={cn(sizeClass, "shrink-0")} title="Twitter" />;
-  }
-  if (icon === LINKEDIN_ICON_VALUE) {
-    return <LinkedInIcon className={cn(sizeClass, "shrink-0")} title="LinkedIn" />;
-  }
-  if (icon === EMAIL_ICON_VALUE) {
-    return <EmailIcon className={cn(sizeClass, "shrink-0")} title="Email" />;
-  }
+  const Icon = getLinkIconComponent(icon);
+  if (Icon) return <Icon className={cn(sizeClass, "shrink-0")} variant={variant} title={getLinkIconEntry(icon)?.label} />;
   return <span className="shrink-0">{icon}</span>;
 };
 
@@ -99,11 +42,18 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
   const buttons = activeLinks.filter((l) => l.linkType === "button");
   const socials = activeLinks.filter((l) => l.linkType === "social");
 
-  // Shared button styling - used for real buttons and, when there are none yet, the example buttons below
+  // Shared button styling - used for real buttons and, when there are none yet, the example buttons below.
+  // Style is fixed to filled, and shape is fixed per button layout (each one
+  // already embeds its own visual form) - these no longer read
+  // profile.globalButtonStyle/BorderRadius (kept on the profile only for
+  // backward compatibility with old rows). buttonBorderRadius here is the
+  // default full-pill radius (overlap-alternate, pill-round-icon);
+  // pill-square-icon overrides it to a small radius in renderPillList below,
+  // so the two "pill" layouts read as visually distinct.
   const globalBgColor = profile.globalButtonBgColor;
+  const globalBgOpacity = profile.globalButtonBgOpacity ?? 100;
   const globalTextColor = profile.globalButtonTextColor;
-  const buttonBorderRadius = profile.globalButtonBorderRadius || "rounded-xl";
-  const buttonStyleMode = profile.globalButtonStyle || "filled";
+  const buttonBorderRadius = "rounded-full";
   const hasCustomButtonColors = globalBgColor || globalTextColor;
 
   const hasProfileIdentity = !!(profile.displayName || profile.username);
@@ -113,8 +63,8 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     onClickElement?.(type, linkId);
   };
 
-  const headerLayout = resolveHeaderLayout(profile.headerLayout, !!template.hasBanner);
-  const hasCurvedBanner = template.hasCurvedBanner;
+  const headerLayout = resolveHeaderLayout(profile.headerLayout, !!template.hasBanner, !!template.hasCurvedBanner);
+  const buttonLayout = resolveButtonLayout(profile.buttonLayout);
 
   const backgroundStyle = getProfileBackgroundStyle(profile, template);
   const hasCustomBackground = hasCustomProfileBackground(profile);
@@ -200,72 +150,203 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     </p>
   );
 
+  // Normalizes real links and the no-links-yet placeholders into one shape
+  // so every layout below maps over a single list instead of duplicating
+  // near-identical JSX for the "real" vs "example" cases.
+  const displayButtons: { key: string; title: string; icon?: string; iconVariant?: IconVariant; thumbnailUrl?: string | null; linkId?: string; isExample?: boolean }[] =
+    buttons.length > 0
+      ? buttons.map((link) => ({
+          key: link.id,
+          title: link.title,
+          icon: link.icon || undefined,
+          iconVariant: link.iconVariant || undefined,
+          thumbnailUrl: link.thumbnailUrl,
+          linkId: link.id,
+        }))
+      : EXAMPLE_BUTTONS.map((example, i) => ({ key: `example-${i}`, title: example.label, icon: example.icon, isExample: true }));
+
+  // Mirrors the button's own fill logic - reused for icon chips that need
+  // their own visible surface (unified-card rows, the overlap-alternate
+  // badge) so they read as "the button's color" condensed into a tile.
+  // Style is fixed to "filled", so this is always a solid fill - no
+  // outline/transparent branch to account for.
+  const chipFillClassName = () => !hasCustomButtonColors && cn(template.styles.buttonBg, template.styles.buttonText);
+  const chipFillStyle = (): CSSProperties =>
+    hasCustomButtonColors
+      ? { backgroundColor: globalBgColor ? hexToRgba(globalBgColor, globalBgOpacity) : undefined, color: globalTextColor || undefined }
+      : {};
+
+  const buttonFillClassName = (isExample?: boolean, radiusOverride?: string) =>
+    cn(
+      radiusOverride ?? buttonBorderRadius,
+      !hasCustomButtonColors && cn(template.styles.buttonBg, template.styles.buttonText),
+      interactive && !isExample && "hover:scale-[1.02] cursor-pointer",
+    );
+  const buttonFillStyle = (): CSSProperties => ({
+    fontFamily: profile.titleFont || "Inter",
+    ...(hasCustomButtonColors
+      ? { backgroundColor: globalBgColor ? hexToRgba(globalBgColor, globalBgOpacity) : undefined, color: globalTextColor || undefined }
+      : {}),
+  });
+
+  const renderPillList = (shape: "square" | "round") => {
+    // "square" gets small rounded corners (not a full pill) so it reads
+    // visually distinct from "round", whose button IS a full pill/capsule.
+    const pillRadius = shape === "round" ? "rounded-full" : "rounded-none";
+    return (
+      <div className="space-y-3 mb-6">
+        {displayButtons.map((item) => {
+          const hasMedia = !!(item.thumbnailUrl || item.icon);
+          return (
+            <button
+              key={item.key}
+              type="button"
+              className={cn(
+                "w-full py-3 px-4 font-medium transition-all relative flex items-center justify-center",
+                buttonFillClassName(item.isExample, pillRadius),
+              )}
+              style={buttonFillStyle()}
+              onClick={() => !item.isExample && item.linkId && handleClick("link", item.linkId)}
+            >
+              {hasMedia && (
+                <span
+                  className={cn(
+                    "absolute left-2 flex h-10 w-10 items-center justify-center overflow-hidden",
+                    shape === "round" ? "rounded-full" : "rounded-none",
+                  )}
+                >
+                  {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderPreviewIcon(item.icon, "sm", item.iconVariant)}
+                </span>
+              )}
+              <span className="text-sm">{item.title}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderOverlapAlternateList = () => (
+    <div className="space-y-4 mb-6">
+      {displayButtons.map((item, i) => {
+        const hasMedia = !!(item.thumbnailUrl || item.icon);
+        const sideLeft = i % 2 === 0;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            className={cn("relative w-full py-3 px-4 font-medium transition-all flex items-center justify-center", buttonFillClassName(item.isExample))}
+            style={buttonFillStyle()}
+            onClick={() => !item.isExample && item.linkId && handleClick("link", item.linkId)}
+          >
+            {hasMedia && (
+              <span
+                className={cn(
+                  "absolute top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full shadow-md",
+                  sideLeft ? "-left-3" : "-right-3",
+                  chipFillClassName(),
+                )}
+                style={{ border: `4px solid ${pageBorderColor}`, ...chipFillStyle() }}
+              >
+                {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderPreviewIcon(item.icon, "sm", item.iconVariant)}
+              </span>
+            )}
+            <span className="text-sm">{item.title}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderCardOverlapAlternateList = () => (
+    // Wide horizontal pill, fully rounded ends. The icon sits in its own
+    // circle, mostly embedded at one end but slightly larger than the
+    // button's own height, so it pokes out a bit on every outer side (top,
+    // bottom, and past the edge) instead of just overlapping sideways.
+    // Minimal by design: no drop shadow, no extra ornamentation beyond the
+    // contrast ring that separates the icon from the button underneath it.
+    <div className="space-y-4 mb-6">
+      {displayButtons.map((item, i) => {
+        const hasMedia = !!(item.thumbnailUrl || item.icon);
+        const sideLeft = i % 2 === 0;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            className={cn(
+              "relative w-full rounded-full flex items-center transition-all",
+              sideLeft ? "pl-16 pr-6" : "pl-6 pr-16",
+              !hasCustomButtonColors && cn(template.styles.buttonBg, template.styles.buttonText),
+              interactive && !item.isExample && "hover:scale-[1.01] cursor-pointer",
+            )}
+            style={{
+              height: 56,
+              fontFamily: profile.titleFont || "Inter",
+              ...(hasCustomButtonColors
+                ? { backgroundColor: globalBgColor ? hexToRgba(globalBgColor, globalBgOpacity) : undefined, color: globalTextColor || undefined }
+                : {}),
+            }}
+            onClick={() => !item.isExample && item.linkId && handleClick("link", item.linkId)}
+          >
+            <span className="flex-1 truncate text-left text-sm font-medium">{item.title}</span>
+
+            {hasMedia && (
+              <span
+                className={cn(
+                  "absolute top-1/2 flex h-[68px] w-[68px] -translate-y-1/2 items-center justify-center overflow-hidden rounded-full",
+                  sideLeft ? "-left-2" : "-right-2",
+                  chipFillClassName(),
+                )}
+                style={{ border: `3px solid ${pageBorderColor}`, ...chipFillStyle() }}
+              >
+                {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderPreviewIcon(item.icon, "sm", item.iconVariant)}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderUnifiedCardList = () => (
+    <div className={cn("mb-6 overflow-hidden rounded-2xl shadow-sm", template.styles.cardBg)}>
+      {displayButtons.map((item, i) => {
+        const hasMedia = !!(item.thumbnailUrl || item.icon);
+        const isLast = i === displayButtons.length - 1;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            className={cn(
+              "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors",
+              interactive && !item.isExample && "cursor-pointer hover:bg-black/5",
+              !isLast && "border-b border-border/60",
+            )}
+            style={{ fontFamily: profile.titleFont || "Inter" }}
+            onClick={() => !item.isExample && item.linkId && handleClick("link", item.linkId)}
+          >
+            {hasMedia && (
+              <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg", chipFillClassName())} style={chipFillStyle()}>
+                {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderPreviewIcon(item.icon, "sm", item.iconVariant)}
+              </span>
+            )}
+            <span className={cn("flex-1 truncate text-sm font-medium", template.styles.textColor)}>{item.title}</span>
+            <ChevronRight className={cn("h-4 w-4 shrink-0 opacity-50", template.styles.textColor)} />
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const renderButtonsAndSocials = () => (
     <>
-      <div className="space-y-3 mb-6">
-        {buttons.length > 0
-          ? buttons.map((link) => (
-              <button
-                key={link.id}
-                type="button"
-                className={cn(
-                  "w-full py-3 px-4 font-medium transition-all relative flex items-center justify-center",
-                  interactive && "hover:scale-[1.02] cursor-pointer",
-                  buttonBorderRadius,
-                  !hasCustomButtonColors &&
-                    (buttonStyleMode === "filled"
-                      ? cn(template.styles.buttonBg, template.styles.buttonText)
-                      : cn("bg-transparent border-2", template.styles.textColor)),
-                  buttonStyleMode === "outline" && hasCustomButtonColors && "bg-transparent border-2",
-                )}
-                style={{
-                  fontFamily: profile.titleFont || "Inter",
-                  ...(hasCustomButtonColors
-                    ? {
-                        backgroundColor: buttonStyleMode === "filled" ? globalBgColor || undefined : "transparent",
-                        color: globalTextColor || undefined,
-                        borderColor: buttonStyleMode === "outline" ? globalBgColor || undefined : undefined,
-                      }
-                    : {}),
-                }}
-                onClick={() => handleClick("link", link.id)}
-              >
-                {link.thumbnailUrl ? (
-                  <img src={link.thumbnailUrl} alt="" className="absolute left-2 w-10 h-10 rounded-lg object-cover" />
-                ) : (
-                  link.icon && <span className="absolute left-4">{renderPreviewIcon(link.icon)}</span>
-                )}
-                <span className="text-sm">{link.title}</span>
-              </button>
-            ))
-          : EXAMPLE_BUTTONS.map((example) => (
-              <div
-                key={example.label}
-                className={cn(
-                  "w-full py-3 px-4 font-medium relative flex items-center justify-center",
-                  buttonBorderRadius,
-                  !hasCustomButtonColors &&
-                    (buttonStyleMode === "filled"
-                      ? cn(template.styles.buttonBg, template.styles.buttonText)
-                      : cn("bg-transparent border-2", template.styles.textColor)),
-                  buttonStyleMode === "outline" && hasCustomButtonColors && "bg-transparent border-2",
-                )}
-                style={{
-                  fontFamily: profile.titleFont || "Inter",
-                  ...(hasCustomButtonColors
-                    ? {
-                        backgroundColor: buttonStyleMode === "filled" ? globalBgColor || undefined : "transparent",
-                        color: globalTextColor || undefined,
-                        borderColor: buttonStyleMode === "outline" ? globalBgColor || undefined : undefined,
-                      }
-                    : {}),
-                }}
-              >
-                <span className="absolute left-4">{renderPreviewIcon(example.icon)}</span>
-                <span className="text-sm">{example.label}</span>
-              </div>
-            ))}
-      </div>
+      {buttonLayout === "unified-card"
+        ? renderUnifiedCardList()
+        : buttonLayout === "overlap-alternate"
+          ? renderOverlapAlternateList()
+          : buttonLayout === "card-overlap-alternate"
+            ? renderCardOverlapAlternateList()
+            : renderPillList(buttonLayout === "pill-round-icon" ? "round" : "square")}
 
       {socials.length > 0 && (
         <div className="flex justify-center gap-4 flex-wrap">
@@ -281,10 +362,10 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
                   "w-10 h-10 rounded-full flex items-center justify-center transition-transform",
                   interactive && "hover:scale-110 cursor-pointer",
                 )}
-                style={{ backgroundColor: socialBgColor, color: socialTextColor }}
+                style={{ backgroundColor: hexToRgba(socialBgColor, globalBgOpacity), color: socialTextColor }}
                 onClick={() => handleClick("link", social.id)}
               >
-                {renderPreviewIcon(social.icon, "md") || "🔗"}
+                {renderPreviewIcon(social.icon, "md", social.iconVariant || undefined) || "🔗"}
               </button>
             );
           })}
@@ -298,17 +379,19 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
       className={cn("h-full overflow-auto", !hasCustomBackground && !hasImageBackground && template.styles.background)}
       style={backgroundStyle}
     >
-      {headerLayout === "banner" ? (
+      {headerLayout === "banner" || headerLayout === "banner-wave" ? (
         <>
-          {/* Banner Layout - cover image/gradient with rounded bottom corners,
-              a large circular avatar overlapping its bottom edge. Name, bio
-              and buttons render below, outside the banner area. */}
+          {/* Banner / Banner Wave Layout - cover image/gradient with a large
+              circular avatar overlapping its bottom edge. The base is either
+              straight rounded corners ("banner") or a curved wave cut
+              ("banner-wave"). Name, bio and buttons render below, outside
+              the banner area. */}
           <div className="relative">
             <div
               className={cn(
                 "w-full relative overflow-hidden",
                 interactive && "cursor-pointer",
-                !hasCurvedBanner && "rounded-b-[32px]",
+                headerLayout !== "banner-wave" && "rounded-b-[32px]",
               )}
               style={{ height: 170 }}
               onClick={() => handleClick("banner")}
@@ -319,7 +402,7 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
                 <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
               )}
 
-              {hasCurvedBanner && (
+              {headerLayout === "banner-wave" && (
                 <svg
                   viewBox="0 0 320 44"
                   className="absolute bottom-[-1px] left-0 w-full h-[44px] pointer-events-none"
@@ -349,33 +432,6 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
               {renderButtonsAndSocials()}
             </div>
           </div>
-        </>
-      ) : headerLayout === "banner-full" ? (
-        <>
-          {/* Banner Full Layout - the cover image/gradient fills almost the
-              whole initial viewport, with a dark fade at its base; a small
-              avatar, name and bio sit on top of that fade, in light text.
-              Buttons render below, outside the image. */}
-          <div
-            className={cn("relative w-full overflow-hidden", interactive && "cursor-pointer")}
-            style={{ height: 220 }}
-            onClick={() => handleClick("banner")}
-          >
-            {profile.bannerUrl ? (
-              <img src={profile.bannerUrl} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
-            ) : (
-              <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-
-            <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-5 text-center">
-              {renderAvatar("w-12 h-12 border-2 border-white/70")}
-              {renderTitleBlock("drop-shadow-sm", "text-white")}
-              {renderBio("drop-shadow-sm mb-0", "text-white")}
-            </div>
-          </div>
-
-          <div className="px-6 pt-6 pb-6">{renderButtonsAndSocials()}</div>
         </>
       ) : headerLayout === "banner-card" ? (
         <>

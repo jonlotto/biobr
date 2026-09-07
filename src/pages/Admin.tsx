@@ -85,6 +85,7 @@ const Admin = () => {
       title: "Novo Link",
       url: "https://",
       icon: null,
+      iconVariant: null,
       thumbnailUrl: null,
       linkType: "button",
       style: "filled",
@@ -116,6 +117,7 @@ const Admin = () => {
       title: selectedPlatform.name,
       url,
       icon: selectedPlatform.icon,
+      iconVariant: null,
       thumbnailUrl: null,
       linkType: "social",
       style: "filled",
@@ -132,7 +134,7 @@ const Admin = () => {
     updateLink(id, { isActive });
   };
 
-  const handleSaveLink = (data: Pick<EditorLink, "title" | "url" | "icon" | "isActive"> & { thumbnailUrl?: string | null }) => {
+  const handleSaveLink = (data: Pick<EditorLink, "title" | "url" | "icon" | "iconVariant" | "isActive"> & { thumbnailUrl?: string | null }) => {
     if (selectedLinkId) {
       updateLink(selectedLinkId, { ...data, thumbnailUrl: data.thumbnailUrl ?? null });
       setSelectedLinkId(null);
