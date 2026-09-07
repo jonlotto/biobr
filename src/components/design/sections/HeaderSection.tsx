@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ImageIcon, Upload, X, Crop } from "lucide-react";
+import { ImageIcon, Upload, X, Crop, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EditorProfile } from "@/hooks/useEditorState";
@@ -7,10 +7,68 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { BannerCropModal } from "@/components/editor/BannerCropModal";
+import { templates } from "@/data/templates";
+import { cn } from "@/lib/utils";
+import { HEADER_LAYOUTS, resolveHeaderLayout, type HeaderLayout } from "@/lib/headerLayouts";
 
 interface HeaderSectionProps {
   profile: EditorProfile;
   onUpdate: (updates: Partial<EditorProfile>) => void;
+}
+
+function LayoutThumb({ layoutId, avatarUrl, primaryColor }: { layoutId: string; avatarUrl: string | null; primaryColor: string }) {
+  const avatarNode = avatarUrl ? (
+    <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+  ) : (
+    <div className="flex h-full w-full items-center justify-center bg-muted-foreground/20">
+      <User className="h-3 w-3 text-muted-foreground" />
+    </div>
+  );
+
+  if (layoutId === "banner") {
+    return (
+      <div className="relative flex h-full w-full flex-col">
+        <div className="h-[55%] w-full" style={{ backgroundColor: primaryColor }} />
+        <div className="flex-1 bg-white" />
+        <div className="absolute left-1/2 top-[42%] h-6 w-6 -translate-x-1/2 overflow-hidden rounded-full border-2 border-white shadow">
+          {avatarNode}
+        </div>
+      </div>
+    );
+  }
+
+  if (layoutId === "banner-full") {
+    return (
+      <div className="relative flex h-full w-full flex-col justify-end" style={{ backgroundColor: primaryColor }}>
+        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/70 to-transparent" />
+        <div className="relative z-10 flex items-center gap-1 p-1">
+          <div className="h-3 w-3 shrink-0 overflow-hidden rounded-full border border-white/70">{avatarNode}</div>
+          <div className="h-1 w-6 rounded-full bg-white/80" />
+        </div>
+      </div>
+    );
+  }
+
+  if (layoutId === "banner-card") {
+    return (
+      <div className="relative flex h-full w-full flex-col">
+        <div className="h-[58%] w-full" style={{ backgroundColor: primaryColor }} />
+        <div className="flex-1 bg-white" />
+        <div className="absolute left-1/2 top-[46%] flex -translate-x-1/2 items-center gap-1 rounded-md border border-border bg-white px-1.5 py-1 shadow">
+          <div className="h-3 w-3 shrink-0 overflow-hidden rounded-sm bg-muted-foreground/20">{avatarNode}</div>
+          <div className="h-1 w-6 rounded-full bg-muted-foreground/30" />
+        </div>
+      </div>
+    );
+  }
+
+  // classic + cutout (cutout is locked, this is just its dimmed placeholder)
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-muted/40">
+      <div className="h-6 w-6 overflow-hidden rounded-full border-2 border-white shadow">{avatarNode}</div>
+      <div className="h-1 w-8 rounded-full bg-muted-foreground/30" />
+    </div>
+  );
 }
 
 export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
@@ -21,6 +79,9 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [initialCropOffsetY, setInitialCropOffsetY] = useState(0);
+
+  const template = templates.find((t) => t.slug === profile.templateSlug) || templates[0];
+  const selectedLayout = resolveHeaderLayout(profile.headerLayout, !!template.hasBanner);
 
   const handleImageUpload = async (
     file: File,
@@ -136,69 +197,63 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
         </p>
       </div>
 
-      {/* Avatar Section */}
+      {/* Layout Section */}
       <div className="space-y-3">
-        <label className="text-sm font-medium">Foto de perfil</label>
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <Avatar className="w-20 h-20 border-2 border-border">
-              <AvatarImage src={profile.avatarUrl || undefined} />
-              <AvatarFallback className="bg-muted text-muted-foreground">
-                {profile.displayName?.charAt(0) || profile.username?.charAt(0) || "?"}
-              </AvatarFallback>
-            </Avatar>
-            {profile.avatarUrl && (
+        <label className="text-sm font-medium">Layout</label>
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {HEADER_LAYOUTS.map((layout) => {
+            const isSelected = !layout.locked && selectedLayout === layout.id;
+            return (
               <button
-                onClick={() => removeImage("avatar")}
-                className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground 
-                           rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 
-                           transition-opacity"
+                key={layout.id}
+                type="button"
+                disabled={layout.locked}
+                onClick={() => !layout.locked && onUpdate({ headerLayout: layout.id as HeaderLayout })}
+                className={cn(
+                  "relative flex w-20 shrink-0 flex-col items-center gap-1.5 rounded-xl border-2 p-1.5 transition-all",
+                  isSelected ? "border-primary" : "border-transparent hover:border-border",
+                  layout.locked && "cursor-not-allowed opacity-70",
+                )}
               >
-                <X className="h-3 w-3" />
+                <div className="relative h-16 w-full overflow-hidden rounded-lg border border-border">
+                  <LayoutThumb layoutId={layout.id} avatarUrl={profile.avatarUrl} primaryColor={template.styles.primaryColor} />
+                  {layout.locked && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-[1px]">
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs font-medium">{layout.label}</span>
+                {layout.locked && (
+                  <span className="absolute -top-1.5 -right-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
+                    PRO
+                  </span>
+                )}
               </button>
-            )}
-          </div>
-          <div className="flex-1">
-            <input
-              type="file"
-              id="avatar-upload"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageUpload(file, "avatar");
-              }}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={isUploadingAvatar}
-              onClick={() => document.getElementById("avatar-upload")?.click()}
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {isUploadingAvatar ? "Enviando..." : "Alterar foto"}
-            </Button>
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Banner Section */}
+      {/* Banner Section - only relevant for the banner-style layouts, which
+          fall back to the theme's own gradient when no image is uploaded */}
+      {selectedLayout !== "classic" && (
       <div className="space-y-3">
         <label className="text-sm font-medium">Banner</label>
-        <div 
-          className="relative aspect-[8/5] rounded-lg border-2 border-dashed border-border 
-                     bg-muted/50 overflow-hidden group cursor-pointer hover:border-primary/50 
+        <div
+          className="relative aspect-[8/5] rounded-lg border-2 border-dashed border-border
+                     bg-muted/50 overflow-hidden group cursor-pointer hover:border-primary/50
                      transition-colors"
           onClick={() => document.getElementById("banner-upload")?.click()}
         >
           {profile.bannerUrl ? (
             <>
-              <img 
-                src={profile.bannerUrl} 
-                alt="Banner" 
+              <img
+                src={profile.bannerUrl}
+                alt="Banner"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100
                               transition-opacity flex items-center justify-center">
                 <Upload className="h-6 w-6 text-white" />
               </div>
@@ -207,8 +262,8 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
                   e.stopPropagation();
                   removeImage("banner");
                 }}
-                className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground 
-                           rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 
+                className="absolute top-2 right-2 w-6 h-6 bg-destructive text-destructive-foreground
+                           rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100
                            transition-opacity"
               >
                 <X className="h-4 w-4" />
@@ -248,6 +303,53 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
               Ajustar
             </Button>
           )}
+        </div>
+      </div>
+      )}
+
+      {/* Avatar Section */}
+      <div className="space-y-3">
+        <label className="text-sm font-medium">Foto de perfil</label>
+        <div className="flex items-center gap-4">
+          <div className="relative group">
+            <Avatar className="w-20 h-20 border-2 border-border">
+              <AvatarImage src={profile.avatarUrl || undefined} />
+              <AvatarFallback className="bg-muted text-muted-foreground">
+                {profile.displayName?.charAt(0) || profile.username?.charAt(0) || "?"}
+              </AvatarFallback>
+            </Avatar>
+            {profile.avatarUrl && (
+              <button
+                onClick={() => removeImage("avatar")}
+                className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground
+                           rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100
+                           transition-opacity"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          <div className="flex-1">
+            <input
+              type="file"
+              id="avatar-upload"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageUpload(file, "avatar");
+              }}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isUploadingAvatar}
+              onClick={() => document.getElementById("avatar-upload")?.click()}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              {isUploadingAvatar ? "Enviando..." : "Alterar foto"}
+            </Button>
+          </div>
         </div>
       </div>
 

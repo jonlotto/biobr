@@ -9,6 +9,7 @@ import biobrLogo from "@/assets/biobr-logo.png";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { extractSubdomain } from "@/utils/subdomain";
+import { resolveHeaderLayout } from "@/lib/headerLayouts";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
@@ -130,8 +131,21 @@ const BioPage = () => {
   }
 
   const template = templates.find((t) => t.slug === profile?.template_slug) || templates[0];
-  const hasBanner = template.hasBanner;
   const hasCurvedBanner = template.hasCurvedBanner;
+  const headerLayout = resolveHeaderLayout((profile as any)?.header_layout ?? null, !!template.hasBanner);
+
+  // Border color used to separate the avatar from the banner behind it -
+  // matches the page's own solid background color so the avatar ring reads
+  // as a continuation of the content area, falling back to white when the
+  // page background is a gradient/image (a color a border can't render).
+  const pageBorderColor =
+    profile?.global_background_color && !profile.global_background_color.startsWith("linear-gradient")
+      ? profile.global_background_color
+      : "#ffffff";
+
+  // Fallback fill for any banner-style layout when the user hasn't uploaded a
+  // banner image yet - a diagonal gradient built from the theme's own colors.
+  const bannerGradient = `linear-gradient(135deg, ${template.styles.primaryColor}, ${template.styles.accentColor})`;
 
   // Separate links by type
   const buttons = links.filter(l => l.link_type !== "social");
@@ -173,24 +187,71 @@ const BioPage = () => {
   const hasCustomBackground = !!globalBgImage || !!globalBgColor;
   const hasTemplateImageBg = template.styles.backgroundType === "image" && template.styles.backgroundImage;
 
+  const renderLinksAndSocials = () => (
+    <>
+      <div className="space-y-4">
+        {buttons.length === 0 && socials.length === 0 ? (
+          <div className="text-center py-8 animate-fade-in">
+            <p className="text-muted-foreground">Nenhum link disponível ainda.</p>
+          </div>
+        ) : (
+          buttons.map((link, index) => (
+            <LinkCard
+              key={link.id}
+              title={link.title}
+              url={link.url}
+              icon={link.icon || undefined}
+              thumbnailUrl={(link as any).thumbnail_url}
+              delay={index * 100}
+              buttonBgColor={profile?.global_button_bg_color || template.styles.primaryColor}
+              buttonTextColor={profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined)}
+              buttonBorderRadius={profile?.global_button_border_radius || undefined}
+              buttonStyle={(profile?.global_button_style as "filled" | "outline") || "filled"}
+              fontFamily={(profile as any)?.title_font || "Inter"}
+            />
+          ))
+        )}
+      </div>
+
+      {socials.length > 0 && (
+        <div className="flex justify-center gap-4 flex-wrap mt-6 animate-fade-in">
+          {socials.map((social) => (
+            <a
+              key={social.id}
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform"
+              style={{
+                backgroundColor: profile?.global_button_bg_color || template.styles.primaryColor,
+                color: profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined),
+              }}
+            >
+              {renderIcon(social.icon || undefined, "w-5 h-5")}
+            </a>
+          ))}
+        </div>
+      )}
+    </>
+  );
+
   return (
     <div className="min-h-screen flex flex-col">
       <div 
         className={cn("flex-1", !hasCustomBackground && !hasTemplateImageBg && template.styles.background)}
         style={backgroundStyle}
       >
-        {hasBanner && profile ? (
-          // Banner Layout - centered container for consistent look
+        {headerLayout === "banner" && profile ? (
+          // Banner Layout - cover image/gradient with rounded bottom corners,
+          // a large circular avatar overlapping its bottom edge. Name, bio
+          // and buttons render below, outside the banner area.
           <div className="min-h-full flex flex-col items-center">
             <div className="w-full max-w-md">
-              {/* Banner Container with wrapper for avatar positioning */}
               <div className="relative w-full">
-                {/* Inner container with overflow-hidden for banner only */}
-                <div className={cn(
-                  "relative w-full overflow-hidden",
-                  hasCurvedBanner ? "aspect-[8/5]" : "aspect-[8/5]"
-                )}>
-                  {/* Banner Image - fills entire container */}
+                <div
+                  className={cn("relative w-full overflow-hidden", !hasCurvedBanner && "rounded-b-[32px]")}
+                  style={{ height: 170 }}
+                >
                   {profile.banner_url ? (
                     <img
                       src={profile.banner_url}
@@ -198,30 +259,28 @@ const BioPage = () => {
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-primary/30 to-accent/30" />
+                    <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
                   )}
-                  
-                  {/* Curved wave overlay - dynamic fill to match background */}
+
                   {hasCurvedBanner && (
-                    <svg 
-                      viewBox="0 0 320 44" 
+                    <svg
+                      viewBox="0 0 320 44"
                       className="absolute bottom-[-1px] left-0 w-full h-[44px] pointer-events-none"
                       preserveAspectRatio="none"
                     >
-                      <path 
-                        d="M0,44 Q160,0 320,44 L320,44 L0,44 Z" 
+                      <path
+                        d="M0,44 Q160,0 320,44 L320,44 L0,44 Z"
                         fill={globalBgColor && !globalBgColor.startsWith("linear-gradient") ? globalBgColor : "#ffffff"}
                       />
                     </svg>
                   )}
                 </div>
-                
-                {/* Avatar overlapping banner - OUTSIDE overflow-hidden */}
-                <div className={cn(
-                  "absolute left-1/2 transform -translate-x-1/2 z-10",
-                  hasCurvedBanner ? "bottom-0 translate-y-1/2" : "-bottom-12"
-                )}>
-                  <Avatar className={cn("w-24 h-24 border-4 border-white", template.styles.avatarBorder, hasCurvedBanner && "shadow-lg")}>
+
+                <div className="absolute left-1/2 bottom-0 z-10 -translate-x-1/2 translate-y-1/2">
+                  <Avatar
+                    className={cn("w-[100px] h-[100px] shadow-lg", template.styles.avatarBorder)}
+                    style={{ border: `4px solid ${pageBorderColor}` }}
+                  >
                     <AvatarImage src={profile.avatar_url || undefined} />
                     <AvatarFallback className={cn(template.styles.cardBg, template.styles.textColor)}>
                       {(profile.display_name || profile.username)?.charAt(0) || "?"}
@@ -230,110 +289,131 @@ const BioPage = () => {
                 </div>
               </div>
 
-              {/* Content - Spacer for avatar (no background) */}
               <div className="pt-16">
-                {/* Inner content container with background */}
-                <div 
-                  className={cn("pb-12 px-4", !hasCustomBackground && template.styles.contentBg)}
-                >
-                {/* Profile Info */}
-                <div className="text-center mb-8 animate-fade-in">
-                  <p 
-                    className={cn(
-                      "text-sm mb-1 opacity-70",
-                      !(profile as any).title_color && template.styles.textColor
+                <div className={cn("pb-12 px-4", !hasCustomBackground && template.styles.contentBg)}>
+                  <div className="text-center mb-8 animate-fade-in">
+                    <p
+                      className={cn("text-sm mb-1 opacity-70", !(profile as any).title_color && template.styles.textColor)}
+                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
+                    >
+                      @{(profile as any).handle || profile.username}
+                    </p>
+                    <h1
+                      className={cn(
+                        "font-bold mb-2",
+                        (profile as any).title_size === "small" ? "text-xl" : "text-2xl",
+                        !(profile as any).title_color && template.styles.textColor,
+                      )}
+                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
+                    >
+                      {profile.display_name || profile.username}
+                    </h1>
+                    {profile.bio && (
+                      <p
+                        className={cn("text-sm max-w-xs mx-auto opacity-80", !(profile as any).title_color && template.styles.textColor)}
+                        style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
+                      >
+                        {profile.bio}
+                      </p>
                     )}
-                    style={{ 
-                      fontFamily: (profile as any).title_font || "Inter",
-                      color: (profile as any).title_color || undefined
-                    }}
-                  >
-                    @{(profile as any).handle || profile.username}
-                  </p>
-                  <h1 
-                    className={cn(
-                      "font-bold mb-2", 
-                      (profile as any).title_size === "small" ? "text-xl" : "text-2xl",
-                      !(profile as any).title_color && template.styles.textColor
-                    )}
-                    style={{
-                      fontFamily: (profile as any).title_font || "Inter",
-                      color: (profile as any).title_color || undefined
-                    }}
+                  </div>
+
+                  {renderLinksAndSocials()}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : headerLayout === "banner-full" && profile ? (
+          // Banner Full Layout - the cover image/gradient fills almost the
+          // whole initial viewport, with a dark fade at its base; a small
+          // avatar, name and bio sit on top of that fade, in light text.
+          // Buttons render below, outside the image.
+          <div className="min-h-full flex flex-col items-center">
+            <div className="w-full max-w-md">
+              <div className="relative w-full overflow-hidden" style={{ height: 220 }}>
+                {profile.banner_url ? (
+                  <img src={profile.banner_url} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+
+                <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-5 text-center">
+                  <Avatar className="w-12 h-12 border-2 border-white/70">
+                    <AvatarImage src={profile.avatar_url || undefined} />
+                    <AvatarFallback className={cn(template.styles.cardBg, template.styles.textColor)}>
+                      {(profile.display_name || profile.username)?.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <h1
+                    className="font-bold text-lg text-white drop-shadow-sm"
+                    style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
                   >
                     {profile.display_name || profile.username}
                   </h1>
                   {profile.bio && (
-                    <p 
-                      className={cn(
-                        "text-sm max-w-xs mx-auto opacity-80",
-                        !(profile as any).title_color && template.styles.textColor
-                      )}
-                      style={{ 
-                        fontFamily: (profile as any).title_font || "Inter",
-                        color: (profile as any).title_color || undefined
-                      }}
+                    <p
+                      className="text-sm max-w-xs text-white/90 drop-shadow-sm"
+                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
                     >
                       {profile.bio}
                     </p>
                   )}
                 </div>
+              </div>
 
-                {/* Links */}
-                <div className="space-y-4">
-                  {buttons.length === 0 && socials.length === 0 ? (
-                    <div className="text-center py-8 animate-fade-in">
-                      <p className="text-muted-foreground">
-                        Nenhum link disponível ainda.
-                      </p>
-                    </div>
-                  ) : (
-                    buttons.map((link, index) => (
-                      <LinkCard
-                        key={link.id}
-                        title={link.title}
-                        url={link.url}
-                        icon={link.icon || undefined}
-                        thumbnailUrl={(link as any).thumbnail_url}
-                        delay={index * 100}
-                        buttonBgColor={profile?.global_button_bg_color || template.styles.primaryColor}
-                        buttonTextColor={profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined)}
-                        buttonBorderRadius={profile?.global_button_border_radius || undefined}
-                        buttonStyle={profile?.global_button_style as "filled" | "outline" || "filled"}
-                        fontFamily={(profile as any)?.title_font || "Inter"}
-                      />
-                    ))
-                  )}
-                </div>
-
-                {/* Social Icons */}
-                {socials.length > 0 && (
-                  <div className="flex justify-center gap-4 flex-wrap mt-6 animate-fade-in">
-                    {socials.map((social) => (
-                      <a
-                        key={social.id}
-                        href={social.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform"
-                        style={{ 
-                          backgroundColor: profile?.global_button_bg_color || template.styles.primaryColor,
-                          color: profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined)
-                        }}
-                      >
-                        {renderIcon(social.icon || undefined, "w-5 h-5")}
-                      </a>
-                    ))}
-                  </div>
+              <div className="px-4 pt-6 pb-12">{renderLinksAndSocials()}</div>
+            </div>
+          </div>
+        ) : headerLayout === "banner-card" && profile ? (
+          // Banner Card Layout - a colored cover with no round avatar; a
+          // floating elevated card overlaps the transition into the
+          // content, holding a small square logo, name and short subtitle.
+          // Buttons render below the card.
+          <div className="min-h-full flex flex-col items-center">
+            <div className="w-full max-w-md">
+              <div className="relative w-full overflow-hidden" style={{ height: 190 }}>
+                {profile.banner_url ? (
+                  <img src={profile.banner_url} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
                 )}
+              </div>
+
+              <div className="px-4">
+                <div className={cn("relative z-10 -mt-10 flex items-center gap-3 rounded-2xl p-4 shadow-lg", template.styles.cardBg)}>
+                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted-foreground/20">
+                    {profile.avatar_url ? (
+                      <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Link2 className={cn("h-5 w-5 opacity-70", template.styles.textColor)} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 text-left">
+                    <h1
+                      className={cn("truncate font-bold", !(profile as any).title_color && template.styles.textColor)}
+                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
+                    >
+                      {profile.display_name || profile.username}
+                    </h1>
+                    <p
+                      className={cn("truncate text-sm opacity-70", !(profile as any).title_color && template.styles.textColor)}
+                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
+                    >
+                      {profile.bio || `@${(profile as any).handle || profile.username}`}
+                    </p>
+                  </div>
                 </div>
               </div>
+
+              <div className="px-4 pt-6 pb-12">{renderLinksAndSocials()}</div>
             </div>
           </div>
         ) : (
-          // Standard Layout
+          // Classic Layout
           <div className="container mx-auto px-4 py-12 max-w-md">
-            {/* Profile Header */}
             {profile && (
               <ProfileHeader
                 displayName={profile.display_name || profile.username}
@@ -348,52 +428,7 @@ const BioPage = () => {
             )}
 
             {/* Links */}
-            <div className="mt-8 space-y-4">
-              {buttons.length === 0 && socials.length === 0 ? (
-                <div className="text-center py-8 animate-fade-in">
-                  <p className="text-muted-foreground">
-                    Nenhum link disponível ainda.
-                  </p>
-                </div>
-              ) : (
-                buttons.map((link, index) => (
-                  <LinkCard
-                    key={link.id}
-                    title={link.title}
-                    url={link.url}
-                    icon={link.icon || undefined}
-                    thumbnailUrl={(link as any).thumbnail_url}
-                    delay={index * 100}
-                    buttonBgColor={profile?.global_button_bg_color || template.styles.primaryColor}
-                    buttonTextColor={profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined)}
-                    buttonBorderRadius={profile?.global_button_border_radius || undefined}
-                    buttonStyle={profile?.global_button_style as "filled" | "outline" || "filled"}
-                    fontFamily={(profile as any)?.title_font || "Inter"}
-                  />
-                ))
-              )}
-            </div>
-
-            {/* Social Icons */}
-            {socials.length > 0 && (
-              <div className="flex justify-center gap-4 flex-wrap mt-6 animate-fade-in">
-                {socials.map((social) => (
-                  <a
-                    key={social.id}
-                    href={social.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-full flex items-center justify-center hover:scale-110 transition-transform"
-                    style={{ 
-                      backgroundColor: profile?.global_button_bg_color || template.styles.primaryColor,
-                      color: profile?.global_button_text_color || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined)
-                    }}
-                  >
-                    {renderIcon(social.icon || undefined, "w-5 h-5")}
-                  </a>
-                ))}
-              </div>
-            )}
+            <div className="mt-8">{renderLinksAndSocials()}</div>
           </div>
         )}
       </div>

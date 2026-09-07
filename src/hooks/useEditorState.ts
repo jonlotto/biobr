@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import type { HeaderLayout } from "@/lib/headerLayouts";
 
 export interface EditorLink {
   id: string;
@@ -29,6 +30,10 @@ export interface EditorProfile {
   handle: string;
   displayName: string;
   bio: string;
+  // Header layout - null means "not chosen yet, fall back to the template's
+  // own hasBanner flag" (see resolveHeaderLayout), so older profiles keep
+  // rendering the way they always have.
+  headerLayout: HeaderLayout | null;
   // Global customization
   globalButtonBgColor: string | null;
   globalButtonTextColor: string | null;
@@ -53,7 +58,13 @@ export interface EditorState {
 
 const DEBOUNCE_DELAY = 800;
 
-export function useEditorState(initialTemplateSlug?: string) {
+export interface UseEditorStateOptions {
+  /** When false, edits only update local state - persisting requires calling `save()`. Defaults to true. */
+  autosave?: boolean;
+}
+
+export function useEditorState(initialTemplateSlug?: string, options?: UseEditorStateOptions) {
+  const autosave = options?.autosave ?? true;
   const { user } = useAuth();
   const { toast } = useToast();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -70,6 +81,7 @@ export function useEditorState(initialTemplateSlug?: string) {
       handle: "",
       displayName: "",
       bio: "",
+      headerLayout: null,
       globalButtonBgColor: null,
       globalButtonTextColor: null,
       globalBackgroundColor: null,
@@ -92,6 +104,13 @@ export function useEditorState(initialTemplateSlug?: string) {
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // Snapshot of what's actually persisted - refreshed on load and after every
+  // successful save, so `discardChanges` has something to revert to.
+  const savedSnapshotRef = useRef<{ profile: EditorProfile; links: EditorLink[] }>({
+    profile: state.profile,
+    links: state.links,
+  });
 
   // Load data from Supabase
   useEffect(() => {
@@ -124,42 +143,53 @@ export function useEditorState(initialTemplateSlug?: string) {
         const finalTemplateSlug = initialTemplateSlug || dbTemplateSlug;
         const templateChanged = initialTemplateSlug && initialTemplateSlug !== dbTemplateSlug;
 
+        const loadedProfile: EditorProfile = {
+          templateSlug: finalTemplateSlug,
+          avatarUrl: profile?.avatar_url || null,
+          bannerUrl: profile?.banner_url || null,
+          bannerOriginalUrl: profile?.banner_original_url || null,
+          bannerCropOffsetY: Number(profile?.banner_crop_offset_y) || 0,
+          username: profile?.username || "",
+          handle: (profile as any)?.handle || profile?.username || "",
+          displayName: profile?.display_name || "",
+          bio: profile?.bio || "",
+          headerLayout: ((profile as any)?.header_layout as EditorProfile["headerLayout"]) || null,
+          globalButtonBgColor: profile?.global_button_bg_color || null,
+          globalButtonTextColor: profile?.global_button_text_color || null,
+          globalBackgroundColor: profile?.global_background_color || null,
+          globalBackgroundImage: (profile as any)?.global_background_image || null,
+          globalButtonStyle: (profile?.global_button_style as "filled" | "outline") || "filled",
+          globalButtonBorderRadius: profile?.global_button_border_radius || "rounded-xl",
+          titleFont: (profile as any)?.title_font || "Inter",
+          titleColor: (profile as any)?.title_color || null,
+          titleSize: ((profile as any)?.title_size as "small" | "large") || "large",
+        };
+        const loadedLinks: EditorLink[] = (links || []).map((link) => ({
+          id: link.id,
+          title: link.title,
+          url: link.url,
+          icon: link.icon,
+          thumbnailUrl: (link as any).thumbnail_url || null,
+          linkType: (link.link_type as "button" | "social") || "button",
+          style: (link.style as "filled" | "outline") || "filled",
+          isActive: link.is_active,
+          order: link.position,
+          buttonBgColor: link.button_bg_color || null,
+          buttonTextColor: link.button_text_color || null,
+          buttonBorderRadius: link.button_border_radius || "rounded-xl",
+        }));
+
+        // A changed template from the URL counts as a pending edit, so don't
+        // snapshot it as "saved" - only the state actually persisted in the DB.
+        savedSnapshotRef.current = {
+          profile: templateChanged ? { ...loadedProfile, templateSlug: dbTemplateSlug } : loadedProfile,
+          links: loadedLinks,
+        };
+
         setState((prev) => ({
           ...prev,
-          profile: {
-            templateSlug: finalTemplateSlug,
-            avatarUrl: profile?.avatar_url || null,
-            bannerUrl: profile?.banner_url || null,
-            bannerOriginalUrl: profile?.banner_original_url || null,
-            bannerCropOffsetY: Number(profile?.banner_crop_offset_y) || 0,
-            username: profile?.username || "",
-            handle: (profile as any)?.handle || profile?.username || "",
-            displayName: profile?.display_name || "",
-            bio: profile?.bio || "",
-            globalButtonBgColor: profile?.global_button_bg_color || null,
-            globalButtonTextColor: profile?.global_button_text_color || null,
-            globalBackgroundColor: profile?.global_background_color || null,
-            globalBackgroundImage: (profile as any)?.global_background_image || null,
-            globalButtonStyle: (profile?.global_button_style as "filled" | "outline") || "filled",
-            globalButtonBorderRadius: profile?.global_button_border_radius || "rounded-xl",
-            titleFont: (profile as any)?.title_font || "Inter",
-            titleColor: (profile as any)?.title_color || null,
-            titleSize: ((profile as any)?.title_size as "small" | "large") || "large",
-          },
-          links: (links || []).map((link) => ({
-            id: link.id,
-            title: link.title,
-            url: link.url,
-            icon: link.icon,
-            thumbnailUrl: (link as any).thumbnail_url || null,
-            linkType: (link.link_type as "button" | "social") || "button",
-            style: (link.style as "filled" | "outline") || "filled",
-            isActive: link.is_active,
-            order: link.position,
-            buttonBgColor: link.button_bg_color || null,
-            buttonTextColor: link.button_text_color || null,
-            buttonBorderRadius: link.button_border_radius || "rounded-xl",
-          })),
+          profile: loadedProfile,
+          links: loadedLinks,
           isLoading: false,
           isDirty: templateChanged || false,
         }));
@@ -199,6 +229,7 @@ export function useEditorState(initialTemplateSlug?: string) {
           handle: currentState.profile.handle,
           display_name: currentState.profile.displayName,
           bio: currentState.profile.bio,
+          header_layout: currentState.profile.headerLayout,
           global_button_bg_color: currentState.profile.globalButtonBgColor,
           global_button_text_color: currentState.profile.globalButtonTextColor,
           global_background_color: currentState.profile.globalBackgroundColor,
@@ -227,6 +258,10 @@ export function useEditorState(initialTemplateSlug?: string) {
       } else {
         await supabase.from("links").delete().eq("user_id", user.id);
       }
+
+      // Mirrors currentState.links but with temp ids swapped for real ones as
+      // they're inserted below, so the post-save snapshot reflects real ids.
+      const savedLinks = [...currentState.links];
 
       // Upsert all current links
       for (const link of currentState.links) {
@@ -260,6 +295,8 @@ export function useEditorState(initialTemplateSlug?: string) {
                 l.id === link.id ? { ...l, id: newLink.id } : l
               ),
             }));
+            const savedIndex = savedLinks.findIndex((l) => l.id === link.id);
+            if (savedIndex !== -1) savedLinks[savedIndex] = { ...savedLinks[savedIndex], id: newLink.id };
             // Keep the currently-open editor pointed at the same link after
             // its temp id is replaced by the real database id, otherwise a
             // pending edit/save targets an id that no longer exists.
@@ -273,6 +310,8 @@ export function useEditorState(initialTemplateSlug?: string) {
             .eq("id", link.id);
         }
       }
+
+      savedSnapshotRef.current = { profile: currentState.profile, links: savedLinks };
 
       setState((prev) => ({
         ...prev,
@@ -291,9 +330,10 @@ export function useEditorState(initialTemplateSlug?: string) {
     }
   }, [user, toast]);
 
-  // Trigger auto-save when dirty
+  // Trigger auto-save when dirty (skipped entirely when autosave is disabled -
+  // in that mode, only the manual `save()` call below persists changes)
   useEffect(() => {
-    if (state.isDirty && !state.isLoading) {
+    if (autosave && state.isDirty && !state.isLoading) {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
@@ -305,7 +345,7 @@ export function useEditorState(initialTemplateSlug?: string) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [state.isDirty, state.isLoading, saveData]);
+  }, [autosave, state.isDirty, state.isLoading, saveData]);
 
   // Update profile
   const updateProfile = useCallback((updates: Partial<EditorProfile>) => {
@@ -391,6 +431,20 @@ export function useEditorState(initialTemplateSlug?: string) {
     saveData();
   }, [saveData]);
 
+  // Revert local edits back to what's actually persisted - used when the
+  // user chooses to leave with unsaved changes instead of saving them.
+  const discardChanges = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    setState((prev) => ({
+      ...prev,
+      profile: savedSnapshotRef.current.profile,
+      links: savedSnapshotRef.current.links,
+      isDirty: false,
+    }));
+  }, []);
+
   return {
     ...state,
     updateProfile,
@@ -400,6 +454,7 @@ export function useEditorState(initialTemplateSlug?: string) {
     duplicateLink,
     reorderLinks,
     save,
+    discardChanges,
     selectedLinkId,
     setSelectedLinkId,
   };

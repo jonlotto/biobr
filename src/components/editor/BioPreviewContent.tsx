@@ -1,6 +1,9 @@
-import { ImageIcon } from "lucide-react";
+import type { CSSProperties } from "react";
+import { User } from "lucide-react";
 import { templates } from "@/data/templates";
 import { EditorProfile, EditorLink } from "@/hooks/useEditorState";
+import { getProfileBackgroundStyle, hasCustomProfileBackground } from "@/lib/templateBackground";
+import { resolveHeaderLayout } from "@/lib/headerLayouts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
@@ -28,6 +31,13 @@ const YOUTUBE_ICON_VALUE = "youtube-icon";
 const TWITTER_ICON_VALUE = "twitter-icon";
 const LINKEDIN_ICON_VALUE = "linkedin-icon";
 const EMAIL_ICON_VALUE = "email-icon";
+
+// Shown in the buttons area of the preview when the user hasn't added any real
+// button yet, so the empty state still demonstrates the selected theme.
+const EXAMPLE_BUTTONS: { label: string; icon: string }[] = [
+  { label: "Meu link", icon: LINK_ICON_VALUE },
+  { label: "Instagram", icon: INSTAGRAM_ICON_VALUE },
+];
 
 export const renderPreviewIcon = (icon: string | undefined, size: "sm" | "md" = "sm") => {
   if (!icon) return null;
@@ -89,81 +99,226 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
   const buttons = activeLinks.filter((l) => l.linkType === "button");
   const socials = activeLinks.filter((l) => l.linkType === "social");
 
+  // Shared button styling - used for real buttons and, when there are none yet, the example buttons below
+  const globalBgColor = profile.globalButtonBgColor;
+  const globalTextColor = profile.globalButtonTextColor;
+  const buttonBorderRadius = profile.globalButtonBorderRadius || "rounded-xl";
+  const buttonStyleMode = profile.globalButtonStyle || "filled";
+  const hasCustomButtonColors = globalBgColor || globalTextColor;
+
+  const hasProfileIdentity = !!(profile.displayName || profile.username);
+
   const handleClick = (type: "avatar" | "username" | "bio" | "link" | "banner", linkId?: string) => {
     if (!interactive) return;
     onClickElement?.(type, linkId);
   };
 
-  const hasBanner = template.hasBanner;
+  const headerLayout = resolveHeaderLayout(profile.headerLayout, !!template.hasBanner);
   const hasCurvedBanner = template.hasCurvedBanner;
 
-  // Build background style with global color/image override or template image
-  const getBackgroundStyle = (): React.CSSProperties | undefined => {
-    // 1. Custom background image has highest priority
-    if (profile.globalBackgroundImage) {
-      return {
-        backgroundImage: `url(${profile.globalBackgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      };
-    }
-    // 2. Custom color or gradient
-    if (profile.globalBackgroundColor) {
-      if (profile.globalBackgroundColor.startsWith("linear-gradient")) {
-        return { background: profile.globalBackgroundColor };
-      }
-      return { backgroundColor: profile.globalBackgroundColor };
-    }
-    // 3. Template background image
-    if (template.styles.backgroundType === "image" && template.styles.backgroundImage) {
-      return {
-        backgroundImage: `url(${template.styles.backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      };
-    }
-    return undefined;
-  };
-
-  const backgroundStyle = getBackgroundStyle();
-  const hasCustomBackground = !!profile.globalBackgroundImage || !!profile.globalBackgroundColor;
+  const backgroundStyle = getProfileBackgroundStyle(profile, template);
+  const hasCustomBackground = hasCustomProfileBackground(profile);
   const hasImageBackground = template.styles.backgroundType === "image" && template.styles.backgroundImage && !hasCustomBackground;
+
+  // Border color used to separate the avatar from the banner behind it -
+  // matches the page's own solid background color so the avatar ring reads
+  // as a continuation of the content area, falling back to white when the
+  // page background is a gradient/image (a color a border can't render).
+  const pageBorderColor =
+    profile.globalBackgroundColor && !profile.globalBackgroundColor.startsWith("linear-gradient")
+      ? profile.globalBackgroundColor
+      : "#ffffff";
+
+  // Fallback fill for any banner-style layout when the user hasn't uploaded a
+  // banner image yet - a diagonal gradient built from the theme's own colors.
+  const bannerGradient = `linear-gradient(135deg, ${template.styles.primaryColor}, ${template.styles.accentColor})`;
+
+  const renderAvatar = (sizeClassName: string, extraClassName?: string, style?: CSSProperties) => (
+    <Avatar
+      className={cn(
+        sizeClassName,
+        template.styles.avatarBorder,
+        interactive && "cursor-pointer hover:opacity-90 transition-opacity",
+        extraClassName,
+      )}
+      style={style}
+      onClick={() => handleClick("avatar")}
+    >
+      <AvatarImage src={profile.avatarUrl || undefined} />
+      <AvatarFallback
+        className={cn(
+          "flex items-center justify-center",
+          hasProfileIdentity ? cn(template.styles.cardBg, template.styles.textColor) : template.styles.textColor,
+        )}
+        style={!hasProfileIdentity ? { backgroundColor: `${template.styles.primaryColor}33` } : undefined}
+      >
+        {profile.displayName?.charAt(0) || profile.username?.charAt(0) || <User className="h-8 w-8 opacity-70" />}
+      </AvatarFallback>
+    </Avatar>
+  );
+
+  const renderTitleBlock = (textClassName?: string, colorClass?: string) => (
+    <>
+      <p
+        className={cn(
+          "text-center text-sm mb-1 transition-opacity",
+          interactive && "cursor-pointer hover:opacity-80",
+          !profile.titleColor && (colorClass ?? template.styles.textColor),
+          textClassName,
+        )}
+        style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
+        onClick={() => handleClick("username")}
+      >
+        @{profile.handle || profile.username || "usuario"}
+      </p>
+      <h1
+        className={cn(
+          "text-center font-bold mb-2",
+          profile.titleSize === "small" ? "text-lg" : "text-xl",
+          !profile.titleColor && (colorClass ?? template.styles.textColor),
+          textClassName,
+        )}
+        style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
+      >
+        {profile.displayName || "Nome de Exibição"}
+      </h1>
+    </>
+  );
+
+  const renderBio = (textClassName?: string, colorClass?: string) => (
+    <p
+      className={cn(
+        "text-center text-sm mb-6 transition-opacity opacity-80",
+        interactive && "cursor-pointer hover:opacity-80",
+        !profile.titleColor && (colorClass ?? template.styles.textColor),
+        textClassName,
+      )}
+      style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
+      onClick={() => handleClick("bio")}
+    >
+      {profile.bio || "Sua bio aqui..."}
+    </p>
+  );
+
+  const renderButtonsAndSocials = () => (
+    <>
+      <div className="space-y-3 mb-6">
+        {buttons.length > 0
+          ? buttons.map((link) => (
+              <button
+                key={link.id}
+                type="button"
+                className={cn(
+                  "w-full py-3 px-4 font-medium transition-all relative flex items-center justify-center",
+                  interactive && "hover:scale-[1.02] cursor-pointer",
+                  buttonBorderRadius,
+                  !hasCustomButtonColors &&
+                    (buttonStyleMode === "filled"
+                      ? cn(template.styles.buttonBg, template.styles.buttonText)
+                      : cn("bg-transparent border-2", template.styles.textColor)),
+                  buttonStyleMode === "outline" && hasCustomButtonColors && "bg-transparent border-2",
+                )}
+                style={{
+                  fontFamily: profile.titleFont || "Inter",
+                  ...(hasCustomButtonColors
+                    ? {
+                        backgroundColor: buttonStyleMode === "filled" ? globalBgColor || undefined : "transparent",
+                        color: globalTextColor || undefined,
+                        borderColor: buttonStyleMode === "outline" ? globalBgColor || undefined : undefined,
+                      }
+                    : {}),
+                }}
+                onClick={() => handleClick("link", link.id)}
+              >
+                {link.thumbnailUrl ? (
+                  <img src={link.thumbnailUrl} alt="" className="absolute left-2 w-10 h-10 rounded-lg object-cover" />
+                ) : (
+                  link.icon && <span className="absolute left-4">{renderPreviewIcon(link.icon)}</span>
+                )}
+                <span className="text-sm">{link.title}</span>
+              </button>
+            ))
+          : EXAMPLE_BUTTONS.map((example) => (
+              <div
+                key={example.label}
+                className={cn(
+                  "w-full py-3 px-4 font-medium relative flex items-center justify-center",
+                  buttonBorderRadius,
+                  !hasCustomButtonColors &&
+                    (buttonStyleMode === "filled"
+                      ? cn(template.styles.buttonBg, template.styles.buttonText)
+                      : cn("bg-transparent border-2", template.styles.textColor)),
+                  buttonStyleMode === "outline" && hasCustomButtonColors && "bg-transparent border-2",
+                )}
+                style={{
+                  fontFamily: profile.titleFont || "Inter",
+                  ...(hasCustomButtonColors
+                    ? {
+                        backgroundColor: buttonStyleMode === "filled" ? globalBgColor || undefined : "transparent",
+                        color: globalTextColor || undefined,
+                        borderColor: buttonStyleMode === "outline" ? globalBgColor || undefined : undefined,
+                      }
+                    : {}),
+                }}
+              >
+                <span className="absolute left-4">{renderPreviewIcon(example.icon)}</span>
+                <span className="text-sm">{example.label}</span>
+              </div>
+            ))}
+      </div>
+
+      {socials.length > 0 && (
+        <div className="flex justify-center gap-4 flex-wrap">
+          {socials.map((social) => {
+            const socialBgColor = profile.globalButtonBgColor || template.styles.primaryColor;
+            const socialTextColor = profile.globalButtonTextColor || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined);
+
+            return (
+              <button
+                key={social.id}
+                type="button"
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-transform",
+                  interactive && "hover:scale-110 cursor-pointer",
+                )}
+                style={{ backgroundColor: socialBgColor, color: socialTextColor }}
+                onClick={() => handleClick("link", social.id)}
+              >
+                {renderPreviewIcon(social.icon, "md") || "🔗"}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div
-      className={cn(
-        "h-full overflow-auto",
-        !hasCustomBackground && !hasImageBackground && template.styles.background
-      )}
+      className={cn("h-full overflow-auto", !hasCustomBackground && !hasImageBackground && template.styles.background)}
       style={backgroundStyle}
     >
-      {hasBanner ? (
+      {headerLayout === "banner" ? (
         <>
-          {/* Banner Layout */}
+          {/* Banner Layout - cover image/gradient with rounded bottom corners,
+              a large circular avatar overlapping its bottom edge. Name, bio
+              and buttons render below, outside the banner area. */}
           <div className="relative">
-            {/* Banner Container - extended height for curved banners */}
             <div
               className={cn(
                 "w-full relative overflow-hidden",
                 interactive && "cursor-pointer",
-                hasCurvedBanner ? "aspect-[8/5]" : "aspect-[8/5]"
+                !hasCurvedBanner && "rounded-b-[32px]",
               )}
+              style={{ height: 170 }}
               onClick={() => handleClick("banner")}
             >
-              {/* Banner Image - fills entire container */}
               {profile.bannerUrl ? (
-                <img
-                  src={profile.bannerUrl}
-                  alt="Banner"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
+                <img src={profile.bannerUrl} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
               ) : (
-                <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
-                  <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
-                </div>
+                <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
               )}
 
-              {/* Curved wave overlay - dynamic fill to match background */}
               {hasCurvedBanner && (
                 <svg
                   viewBox="0 0 320 44"
@@ -172,335 +327,122 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
                 >
                   <path
                     d="M0,44 Q160,0 320,44 L320,44 L0,44 Z"
-                    fill={profile.globalBackgroundColor && !profile.globalBackgroundColor.startsWith("linear-gradient") ? profile.globalBackgroundColor : "#ffffff"}
+                    fill={
+                      profile.globalBackgroundColor && !profile.globalBackgroundColor.startsWith("linear-gradient")
+                        ? profile.globalBackgroundColor
+                        : "#ffffff"
+                    }
                   />
                 </svg>
               )}
             </div>
 
-            {/* Avatar overlapping banner */}
-            <div
-              className={cn(
-                "absolute left-1/2 transform -translate-x-1/2 z-10",
-                interactive && "cursor-pointer hover:opacity-90 transition-opacity",
-                hasCurvedBanner ? "bottom-0 translate-y-1/2" : "-bottom-12"
-              )}
-              onClick={() => handleClick("avatar")}
-            >
-              <Avatar
-                className={cn("w-24 h-24 border-4 border-white", template.styles.avatarBorder, hasCurvedBanner && "shadow-lg")}
-              >
-                <AvatarImage src={profile.avatarUrl || undefined} />
-                <AvatarFallback
-                  className={cn(template.styles.cardBg, template.styles.textColor)}
-                >
-                  {profile.displayName?.charAt(0) || profile.username?.charAt(0) || "?"}
-                </AvatarFallback>
-              </Avatar>
+            <div className="absolute left-1/2 bottom-0 z-10 -translate-x-1/2 translate-y-1/2">
+              {renderAvatar("w-[100px] h-[100px] shadow-lg", undefined, { border: `4px solid ${pageBorderColor}` })}
             </div>
           </div>
 
-          {/* Content below banner - Spacer for avatar (no background) */}
           <div className="pt-16">
-            {/* Inner content container with background */}
-            <div
-              className={cn("pb-6 px-6", !hasCustomBackground && template.styles.contentBg)}
-            >
-              {/* Username */}
-              <p
-                className={cn(
-                  "text-center text-sm mb-1 transition-opacity",
-                  interactive && "cursor-pointer hover:opacity-80",
-                  !profile.titleColor && template.styles.textColor
-                )}
-                style={{
-                  fontFamily: profile.titleFont || "Inter",
-                  color: profile.titleColor || undefined
-                }}
-                onClick={() => handleClick("username")}
-              >
-                @{profile.handle || profile.username || "usuario"}
-              </p>
-
-              {/* Display Name */}
-              <h1
-                className={cn(
-                  "text-center font-bold mb-2",
-                  profile.titleSize === "small" ? "text-lg" : "text-xl",
-                  !profile.titleColor && template.styles.textColor
-                )}
-                style={{
-                  fontFamily: profile.titleFont || "Inter",
-                  color: profile.titleColor || undefined
-                }}
-              >
-                {profile.displayName || "Nome de Exibição"}
-              </h1>
-
-              {/* Bio */}
-              <p
-                className={cn(
-                  "text-center text-sm mb-6 transition-opacity opacity-80",
-                  interactive && "cursor-pointer hover:opacity-80",
-                  !profile.titleColor && template.styles.textColor
-                )}
-                style={{
-                  fontFamily: profile.titleFont || "Inter",
-                  color: profile.titleColor || undefined
-                }}
-                onClick={() => handleClick("bio")}
-              >
-                {profile.bio || "Sua bio aqui..."}
-              </p>
-
-              {/* Buttons */}
-              <div className="space-y-3 mb-6">
-                {buttons.map((link) => {
-                  // Use global styles from profile
-                  const bgColor = profile.globalButtonBgColor;
-                  const textColor = profile.globalButtonTextColor;
-                  const borderRadius = profile.globalButtonBorderRadius || "rounded-xl";
-                  const buttonStyle = profile.globalButtonStyle || "filled";
-                  const hasCustomColors = bgColor || textColor;
-                  return (
-                    <button
-                      key={link.id}
-                      type="button"
-                      className={cn(
-                        "w-full py-3 px-4 font-medium transition-all relative flex items-center justify-center",
-                        interactive && "hover:scale-[1.02] cursor-pointer",
-                        borderRadius,
-                        !hasCustomColors && (
-                          buttonStyle === "filled"
-                            ? cn(template.styles.buttonBg, template.styles.buttonText)
-                            : cn("bg-transparent border-2", template.styles.textColor)
-                        ),
-                        buttonStyle === "outline" && hasCustomColors && "bg-transparent border-2"
-                      )}
-                      style={{
-                        fontFamily: profile.titleFont || "Inter",
-                        ...(hasCustomColors ? {
-                          backgroundColor: buttonStyle === "filled" ? (bgColor || undefined) : "transparent",
-                          color: textColor || undefined,
-                          borderColor: buttonStyle === "outline" ? (bgColor || undefined) : undefined,
-                        } : {})
-                      }}
-                      onClick={() => handleClick("link", link.id)}
-                    >
-                      {link.thumbnailUrl ? (
-                        <img
-                          src={link.thumbnailUrl}
-                          alt=""
-                          className="absolute left-2 w-10 h-10 rounded-lg object-cover"
-                        />
-                      ) : link.icon && (
-                        <span className="absolute left-4">
-                          {renderPreviewIcon(link.icon)}
-                        </span>
-                      )}
-                      <span className="text-sm">{link.title}</span>
-                    </button>
-                  );
-                })}
-                {buttons.length === 0 && (
-                  <div
-                    className={cn(
-                      "w-full py-3 px-4 rounded-xl text-center opacity-50 border-2 border-dashed border-current",
-                      template.styles.textColor
-                    )}
-                  >
-                    Adicione seus botões
-                  </div>
-                )}
-              </div>
-
-              {/* Social Icons */}
-              {socials.length > 0 && (
-                <div className="flex justify-center gap-4 flex-wrap">
-                  {socials.map((social) => {
-                    const socialBgColor = profile.globalButtonBgColor || template.styles.primaryColor;
-                    const socialTextColor = profile.globalButtonTextColor || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined);
-
-                    return (
-                      <button
-                        key={social.id}
-                        type="button"
-                        className={cn(
-                          "w-10 h-10 rounded-full flex items-center justify-center transition-transform",
-                          interactive && "hover:scale-110 cursor-pointer"
-                        )}
-                        style={{
-                          backgroundColor: socialBgColor,
-                          color: socialTextColor
-                        }}
-                        onClick={() => handleClick("link", social.id)}
-                      >
-                        {renderPreviewIcon(social.icon, "md") || "🔗"}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+            <div className={cn("pb-6 px-6", !hasCustomBackground && template.styles.contentBg)}>
+              {renderTitleBlock()}
+              {renderBio()}
+              {renderButtonsAndSocials()}
             </div>
           </div>
         </>
-      ) : (
-        /* Standard Layout */
-        <div className="p-6 pt-10">
-          {/* Avatar */}
+      ) : headerLayout === "banner-full" ? (
+        <>
+          {/* Banner Full Layout - the cover image/gradient fills almost the
+              whole initial viewport, with a dark fade at its base; a small
+              avatar, name and bio sit on top of that fade, in light text.
+              Buttons render below, outside the image. */}
           <div
-            className={cn(
-              "flex justify-center mb-4 transition-opacity",
-              interactive && "cursor-pointer hover:opacity-80"
-            )}
-            onClick={() => handleClick("avatar")}
+            className={cn("relative w-full overflow-hidden", interactive && "cursor-pointer")}
+            style={{ height: 220 }}
+            onClick={() => handleClick("banner")}
           >
-            <Avatar
-              className={cn("w-24 h-24", template.styles.avatarBorder)}
-            >
-              <AvatarImage src={profile.avatarUrl || undefined} />
-              <AvatarFallback
-                className={cn(template.styles.cardBg, template.styles.textColor)}
-              >
-                {profile.displayName?.charAt(0) || profile.username?.charAt(0) || "?"}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-
-          {/* Username */}
-          <p
-            className={cn(
-              "text-center text-sm mb-1 transition-opacity",
-              interactive && "cursor-pointer hover:opacity-80",
-              !profile.titleColor && template.styles.textColor
+            {profile.bannerUrl ? (
+              <img src={profile.bannerUrl} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
             )}
-            style={{
-              fontFamily: profile.titleFont || "Inter",
-              color: profile.titleColor || undefined
-            }}
-            onClick={() => handleClick("username")}
-          >
-            @{profile.handle || profile.username || "usuario"}
-          </p>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
 
-          {/* Display Name */}
-          <h1
-            className={cn(
-              "text-center font-bold mb-2",
-              profile.titleSize === "small" ? "text-lg" : "text-xl",
-              !profile.titleColor && template.styles.textColor
-            )}
-            style={{
-              fontFamily: profile.titleFont || "Inter",
-              color: profile.titleColor || undefined
-            }}
-          >
-            {profile.displayName || "Nome de Exibição"}
-          </h1>
-
-          {/* Bio */}
-          <p
-            className={cn(
-              "text-center text-sm mb-6 transition-opacity opacity-80",
-              interactive && "cursor-pointer hover:opacity-80",
-              !profile.titleColor && template.styles.textColor
-            )}
-            style={{
-              fontFamily: profile.titleFont || "Inter",
-              color: profile.titleColor || undefined
-            }}
-            onClick={() => handleClick("bio")}
-          >
-            {profile.bio || "Sua bio aqui..."}
-          </p>
-
-          {/* Buttons */}
-          <div className="space-y-3 mb-6">
-            {buttons.map((link) => {
-              // Use global styles from profile
-              const bgColor = profile.globalButtonBgColor;
-              const textColor = profile.globalButtonTextColor;
-              const borderRadius = profile.globalButtonBorderRadius || "rounded-xl";
-              const buttonStyle = profile.globalButtonStyle || "filled";
-              const hasCustomColors = bgColor || textColor;
-              return (
-                <button
-                  key={link.id}
-                  type="button"
-                  className={cn(
-                    "w-full py-3 px-4 font-medium transition-all relative flex items-center justify-center",
-                    interactive && "hover:scale-[1.02] cursor-pointer",
-                    borderRadius,
-                    !hasCustomColors && (
-                      buttonStyle === "filled"
-                        ? cn(template.styles.buttonBg, template.styles.buttonText)
-                        : cn("bg-transparent border-2", template.styles.textColor)
-                    ),
-                    buttonStyle === "outline" && hasCustomColors && "bg-transparent border-2"
-                  )}
-                  style={{
-                    fontFamily: profile.titleFont || "Inter",
-                    ...(hasCustomColors ? {
-                      backgroundColor: buttonStyle === "filled" ? (bgColor || undefined) : "transparent",
-                      color: textColor || undefined,
-                      borderColor: buttonStyle === "outline" ? (bgColor || undefined) : undefined,
-                    } : {})
-                  }}
-                  onClick={() => handleClick("link", link.id)}
-                >
-                  {link.thumbnailUrl ? (
-                    <img
-                      src={link.thumbnailUrl}
-                      alt=""
-                      className="absolute left-2 w-10 h-10 rounded-lg object-cover"
-                    />
-                  ) : link.icon && (
-                    <span className="absolute left-4">
-                      {renderPreviewIcon(link.icon)}
-                    </span>
-                  )}
-                  <span className="text-sm">{link.title}</span>
-                </button>
-              );
-            })}
-            {buttons.length === 0 && (
-              <div
-                className={cn(
-                  "w-full py-3 px-4 rounded-xl text-center opacity-50 border-2 border-dashed border-current",
-                  template.styles.textColor
-                )}
-              >
-                Adicione seus botões
-              </div>
-            )}
-          </div>
-
-          {socials.length > 0 && (
-            <div className="flex justify-center gap-4 flex-wrap">
-              {socials.map((social) => {
-                const socialBgColor = profile.globalButtonBgColor || template.styles.primaryColor;
-                const socialTextColor = profile.globalButtonTextColor || (template.styles.buttonText?.includes("white") ? "#ffffff" : undefined);
-
-                return (
-                  <button
-                    key={social.id}
-                    type="button"
-                    className={cn(
-                      "w-10 h-10 rounded-full flex items-center justify-center transition-transform",
-                      interactive && "hover:scale-110 cursor-pointer"
-                    )}
-                    style={{
-                      backgroundColor: socialBgColor,
-                      color: socialTextColor
-                    }}
-                    onClick={() => handleClick("link", social.id)}
-                  >
-                    {renderPreviewIcon(social.icon, "md") || "🔗"}
-                  </button>
-                );
-              })}
+            <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-6 pb-5 text-center">
+              {renderAvatar("w-12 h-12 border-2 border-white/70")}
+              {renderTitleBlock("drop-shadow-sm", "text-white")}
+              {renderBio("drop-shadow-sm mb-0", "text-white")}
             </div>
-          )}
+          </div>
+
+          <div className="px-6 pt-6 pb-6">{renderButtonsAndSocials()}</div>
+        </>
+      ) : headerLayout === "banner-card" ? (
+        <>
+          {/* Banner Card Layout - a colored cover with no round avatar; a
+              floating elevated card overlaps the transition into the
+              content, holding a small square logo, name and short
+              subtitle. Buttons render below the card. */}
+          <div
+            className={cn("w-full relative overflow-hidden", interactive && "cursor-pointer")}
+            style={{ height: 190 }}
+            onClick={() => handleClick("banner")}
+          >
+            {profile.bannerUrl ? (
+              <img src={profile.bannerUrl} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
+            )}
+          </div>
+
+          <div className="px-6">
+            <div
+              className={cn(
+                "relative z-10 -mt-10 flex items-center gap-3 rounded-2xl p-4 shadow-lg",
+                template.styles.cardBg,
+              )}
+            >
+              <div
+                className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted-foreground/20 cursor-pointer"
+                onClick={() => handleClick("avatar")}
+              >
+                {profile.avatarUrl ? (
+                  <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <User className={cn("h-5 w-5 opacity-70", template.styles.textColor)} />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <h1
+                  className={cn("truncate font-bold", !profile.titleColor && template.styles.textColor)}
+                  style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
+                  onClick={() => handleClick("username")}
+                >
+                  {profile.displayName || "Nome de Exibição"}
+                </h1>
+                <p
+                  className={cn("truncate text-sm opacity-70", !profile.titleColor && template.styles.textColor)}
+                  style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
+                  onClick={() => handleClick("bio")}
+                >
+                  {profile.bio || `@${profile.handle || profile.username || "usuario"}`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-6 pt-6 pb-6">{renderButtonsAndSocials()}</div>
+        </>
+      ) : (
+        /* Classic Layout - small centered circular avatar, page background
+           behind, title and bio below. */
+        <div className="p-6 pt-10">
+          <div className="flex justify-center mb-4">{renderAvatar("w-24 h-24")}</div>
+          {renderTitleBlock()}
+          {renderBio()}
+          {renderButtonsAndSocials()}
         </div>
       )}
     </div>

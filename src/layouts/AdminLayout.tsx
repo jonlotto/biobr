@@ -1,27 +1,19 @@
-import { useState, useRef, ComponentType, SVGProps } from "react";
+import { useEffect, useState, ComponentType, SVGProps } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEditorState, EditorLink } from "@/hooks/useEditorState";
-import { useScrollSpy } from "@/hooks/useScrollSpy";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ProfileHeaderCard } from "@/components/admin/ProfileHeaderCard";
 import { SocialIconsSection } from "@/components/admin/SocialIconsSection";
 import { AdminLinksList } from "@/components/admin/AdminLinksList";
 import { AdminRealtimePreview } from "@/components/admin/AdminRealtimePreview";
-import { DesignSidebar, SECTIONS } from "@/components/design/DesignSidebar";
+import { DesignDrilldownView } from "@/components/design/DesignDrilldownView";
 import { EditorPreview } from "@/components/editor/EditorPreview";
 import { ButtonEditDrawer } from "@/components/editor/ButtonEditDrawer";
 import { SocialAddModal } from "@/components/editor/SocialAddModal";
-import { HeaderSection } from "@/components/design/sections/HeaderSection";
-import { ThemeSection } from "@/components/design/sections/ThemeSection";
-import { WallpaperSection } from "@/components/design/sections/WallpaperSection";
-import { TextSection } from "@/components/design/sections/TextSection";
-import { ButtonsSection } from "@/components/design/sections/ButtonsSection";
-import { FooterSection } from "@/components/design/sections/FooterSection";
 import { SettingsSection } from "@/components/design/sections/SettingsSection";
 import { Button } from "@/components/ui/button";
-import { Plus, Save, Loader2, Check, Cloud } from "lucide-react";
+import { Plus, Save, Loader2 } from "lucide-react";
 import { InstagramIcon } from "@/components/icons/InstagramIcon";
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import { YouTubeIcon } from "@/components/icons/YouTubeIcon";
@@ -49,16 +41,13 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
   { id: "email", name: "Email", icon: "email-icon", Icon: EmailIcon, urlTemplate: "mailto:{email}" },
 ];
 
-const SECTION_IDS = SECTIONS.map((s) => s.id);
-
 export type AdminView = "links" | "design" | "settings";
 
 export default function AdminLayout() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const isMobile = useIsMobile();
-  
+
   // Determine initial view based on URL
   const getInitialView = (): AdminView => {
     if (location.pathname === "/design") return "design";
@@ -73,7 +62,6 @@ export default function AdminLayout() {
     isLoading,
     isSaving,
     isDirty,
-    lastSaved,
     updateProfile,
     addLink,
     updateLink,
@@ -81,13 +69,10 @@ export default function AdminLayout() {
     duplicateLink,
     reorderLinks,
     save,
+    discardChanges,
     selectedLinkId,
     setSelectedLinkId,
-  } = useEditorState();
-
-  // Design section scroll spy
-  const containerRef = useRef<HTMLDivElement>(null);
-  const activeSection = useScrollSpy(SECTION_IDS, containerRef, { offset: 80 });
+  } = useEditorState(undefined, { autosave: activeView !== "design" });
 
   // Links state
   const [showAddSocial, setShowAddSocial] = useState(false);
@@ -96,8 +81,35 @@ export default function AdminLayout() {
   // has one configured — used only to pre-fill the modal's input value.
   const [editingSocial, setEditingSocial] = useState<EditorLink | null>(null);
 
+  // The design view has no autosave - warn before discarding unsaved edits.
+  // Confirming actually reverts the local state too, otherwise it would sit
+  // there dirty and get silently persisted by autosave once it turns back on
+  // outside the design view.
+  const confirmDiscardDesignChanges = () => {
+    if (activeView !== "design" || !isDirty) return true;
+    const confirmed = window.confirm("Você tem alterações não salvas. Sair mesmo assim?");
+    if (confirmed) discardChanges();
+    return confirmed;
+  };
+
+  // Warn on hard navigation too (tab close, refresh, typing a new URL) -
+  // in-app view/route changes are guarded individually since this event
+  // doesn't fire for client-side navigation.
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (activeView === "design" && isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [activeView, isDirty]);
+
   // Handle view change - update URL without full navigation
   const handleViewChange = (view: AdminView) => {
+    if (view === activeView) return;
+    if (!confirmDiscardDesignChanges()) return;
     setActiveView(view);
     // Update URL without reload
     const paths = { links: "/admin", design: "/design", settings: "/settings" };
@@ -205,36 +217,17 @@ export default function AdminLayout() {
     }
   };
 
-  const handleDesignNavigate = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-  };
-
   return (
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
-      {/* Top Navigation Bar - dropdown menu */}
+    <div className="flex flex-col md:flex-row h-screen bg-background overflow-hidden">
+      {/* Collapsible animated sidebar (desktop: hover to expand, mobile: fullscreen menu) */}
       <AdminSidebar
         activeSection={activeView}
         username={profile.username}
         onNavigate={handleViewChange}
+        onBeforeNavigate={confirmDiscardDesignChanges}
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Design Sections Sidebar - only show on design view (desktop only) */}
-        {activeView === "design" && !isMobile && (
-          <div className="w-56 border-r border-border flex-shrink-0">
-            <DesignSidebar
-              activeSection={activeSection}
-              onNavigate={handleDesignNavigate}
-            />
-          </div>
-        )}
-
         {/* Main Content */}
         {activeView === "links" ? (
           <main key="links" className="flex-1 overflow-auto animate-fade-in">
@@ -311,58 +304,14 @@ export default function AdminLayout() {
           </div>
         </main>
       ) : activeView === "design" ? (
-        <main 
-          key="design"
-          ref={containerRef}
-          className="flex-1 overflow-y-auto scroll-smooth animate-fade-in"
-        >
-          {/* Save Status Bar */}
-          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-6 py-3">
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold">Personalizar Design</h1>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {isSaving ? (
-                  <>
-                    <Cloud className="h-4 w-4 animate-pulse" />
-                    <span>Salvando...</span>
-                  </>
-                ) : lastSaved ? (
-                  <>
-                    <Check className="h-4 w-4 text-green-500" />
-                    <span>Salvo</span>
-                  </>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* Design Sections */}
-          <div className="max-w-xl mx-auto py-8 px-6 space-y-16">
-            <section id="header" className="scroll-mt-20">
-              <HeaderSection profile={profile} onUpdate={updateProfile} />
-            </section>
-
-            <section id="theme" className="scroll-mt-20">
-              <ThemeSection profile={profile} onUpdate={updateProfile} />
-            </section>
-
-            <section id="wallpaper" className="scroll-mt-20">
-              <WallpaperSection profile={profile} onUpdate={updateProfile} />
-            </section>
-
-            <section id="text" className="scroll-mt-20">
-              <TextSection profile={profile} onUpdate={updateProfile} />
-            </section>
-
-            <section id="buttons" className="scroll-mt-20">
-              <ButtonsSection profile={profile} onUpdate={updateProfile} />
-            </section>
-
-            <section id="footer" className="scroll-mt-20 pb-8">
-              <FooterSection profile={profile} onUpdate={updateProfile} />
-            </section>
-          </div>
-        </main>
+        <DesignDrilldownView
+          profile={profile}
+          links={links}
+          onUpdate={updateProfile}
+          isSaving={isSaving}
+          isDirty={isDirty}
+          onSave={save}
+        />
       ) : (
         <main 
           key="settings"

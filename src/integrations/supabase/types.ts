@@ -70,6 +70,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_shape: string
           avatar_url: string | null
           banner_crop_offset_y: number | null
           banner_original_url: string | null
@@ -84,6 +85,7 @@ export type Database = {
           global_button_style: string | null
           global_button_text_color: string | null
           handle: string | null
+          header_layout: string | null
           id: string
           template_slug: string | null
           title_color: string | null
@@ -94,6 +96,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          avatar_shape?: string
           avatar_url?: string | null
           banner_crop_offset_y?: number | null
           banner_original_url?: string | null
@@ -108,6 +111,7 @@ export type Database = {
           global_button_style?: string | null
           global_button_text_color?: string | null
           handle?: string | null
+          header_layout?: string | null
           id?: string
           template_slug?: string | null
           title_color?: string | null
@@ -118,6 +122,7 @@ export type Database = {
           username: string
         }
         Update: {
+          avatar_shape?: string
           avatar_url?: string | null
           banner_crop_offset_y?: number | null
           banner_original_url?: string | null
@@ -132,6 +137,7 @@ export type Database = {
           global_button_style?: string | null
           global_button_text_color?: string | null
           handle?: string | null
+          header_layout?: string | null
           id?: string
           template_slug?: string | null
           title_color?: string | null

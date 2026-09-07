@@ -12,15 +12,15 @@ interface ProfileHeaderProps {
   titleSize?: "small" | "large";
 }
 
-const ProfileHeader = ({ 
-  displayName, 
+const ProfileHeader = ({
+  displayName,
   username,
-  handle, 
-  bio, 
+  handle,
+  bio,
   avatarUrl,
   titleFont = "Inter",
   titleColor,
-  titleSize = "large"
+  titleSize = "large",
 }: ProfileHeaderProps) => {
   const initials = displayName
     .split(" ")

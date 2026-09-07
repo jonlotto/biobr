@@ -1,32 +1,76 @@
-import { useState } from "react";
-import { LayoutGrid, Palette, LogOut, ExternalLink, Users, Settings, QrCode, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import { useState, type ComponentType, type MouseEvent, type SVGProps } from "react";
+import { motion } from "framer-motion";
+import { Link2, Palette, Settings, Users, QrCode, ExternalLink, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Sidebar, SidebarBody, SidebarLink, Logo, LogoIcon, useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
-import biobrLogo from "@/assets/biobr-logo.png";
 import { buildSubdomainUrl } from "@/utils/subdomain";
+import { cn } from "@/lib/utils";
 import { QrCodeModal } from "./QrCodeModal";
 
 interface AdminSidebarProps {
   activeSection: "links" | "design" | "settings";
   username?: string;
   onNavigate?: (view: "links" | "design" | "settings") => void;
+  /** Called before navigating away to a different page (Usuários) or signing out. Return false to cancel. */
+  onBeforeNavigate?: () => boolean;
 }
 
-export function AdminSidebar({ activeSection, username, onNavigate }: AdminSidebarProps) {
+const NAV_ITEMS: { view: "links" | "design" | "settings"; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
+  { view: "links", label: "Links", icon: Link2 },
+  { view: "design", label: "Design", icon: Palette },
+  { view: "settings", label: "Configurações", icon: Settings },
+];
+
+function SidebarHeader() {
+  const { open } = useSidebar();
+  return open ? <Logo /> : <LogoIcon />;
+}
+
+function SidebarActionButton({
+  icon: Icon,
+  label,
+  active,
+  disabled,
+  onClick,
+}: {
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  const { open, animate } = useSidebar();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "flex w-full items-center justify-start gap-2 group/sidebar py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+        active ? "text-white" : "text-white/70 hover:text-white",
+      )}
+    >
+      <Icon className="h-5 w-5 flex-shrink-0" />
+      <motion.span
+        animate={{
+          display: animate ? (open ? "inline-block" : "none") : "inline-block",
+          opacity: animate ? (open ? 1 : 0) : 1,
+        }}
+        className="text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
+      >
+        {label}
+      </motion.span>
+    </button>
+  );
+}
+
+export function AdminSidebar({ activeSection, username, onNavigate, onBeforeNavigate }: AdminSidebarProps) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { isAdmin } = useUserRole();
   const [qrOpen, setQrOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
-  };
 
   const handleNavClick = (view: "links" | "design" | "settings") => {
     if (onNavigate) {
@@ -35,120 +79,72 @@ export function AdminSidebar({ activeSection, username, onNavigate }: AdminSideb
       const paths = { links: "/admin", design: "/design", settings: "/settings" };
       navigate(paths[view]);
     }
-    setMenuOpen(false);
+  };
+
+  const handleUsersLinkClick = (e: MouseEvent) => {
+    if (onBeforeNavigate && !onBeforeNavigate()) {
+      e.preventDefault();
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (onBeforeNavigate && !onBeforeNavigate()) return;
+    await signOut();
+    navigate("/");
   };
 
   return (
-    <header className="w-full h-14 border-b border-white/10 bg-black flex items-center px-4 flex-shrink-0 relative z-20">
-      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-white/80 hover:text-white hover:bg-white/10">
-            <Menu className="h-6 w-6" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-64 bg-black border-white/10 flex flex-col">
-          {/* Logo */}
-          <div className="p-6 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <img src={biobrLogo} alt="VtrineBio" className="h-8" />
-            </div>
-          </div>
+    <Sidebar>
+      <SidebarBody className="justify-between gap-10">
+        <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+          <SidebarHeader />
 
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full justify-start rounded-xl h-11 text-white/80 hover:text-white hover:bg-white/10",
-                activeSection === "links" && "bg-white/10 text-white"
-              )}
-              onClick={() => handleNavClick("links")}
-            >
-              <LayoutGrid className="h-5 w-5 mr-3" />
-              Links
-            </Button>
+          <div className="mt-8 flex flex-col gap-1">
+            {NAV_ITEMS.map((item) => (
+              <SidebarActionButton
+                key={item.view}
+                icon={item.icon}
+                label={item.label}
+                active={activeSection === item.view}
+                onClick={() => handleNavClick(item.view)}
+              />
+            ))}
 
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full justify-start rounded-xl h-11 text-white/80 hover:text-white hover:bg-white/10",
-                activeSection === "design" && "bg-white/10 text-white"
-              )}
-              onClick={() => handleNavClick("design")}
-            >
-              <Palette className="h-5 w-5 mr-3" />
-              Design
-            </Button>
-
-            <Button
-              variant="ghost"
-              className={cn(
-                "w-full justify-start rounded-xl h-11 text-white/80 hover:text-white hover:bg-white/10",
-                activeSection === "settings" && "bg-white/10 text-white"
-              )}
-              onClick={() => handleNavClick("settings")}
-            >
-              <Settings className="h-5 w-5 mr-3" />
-              Configurações
-            </Button>
-
-            <Button
-              variant="ghost"
-              className="w-full justify-start rounded-xl h-11 text-white/80 hover:text-white hover:bg-white/10"
-              onClick={() => {
-                setQrOpen(true);
-                setMenuOpen(false);
-              }}
+            <SidebarActionButton
+              icon={QrCode}
+              label="QR Code"
               disabled={!username}
-            >
-              <QrCode className="h-5 w-5 mr-3" />
-              QR Code
-            </Button>
+              onClick={() => setQrOpen(true)}
+            />
 
             {isAdmin && (
-              <Button
-                variant="ghost"
-                className="w-full justify-start rounded-xl h-11 text-white/80 hover:text-white hover:bg-white/10"
-                onClick={() => {
-                  navigate("/admin/users");
-                  setMenuOpen(false);
+              <SidebarLink
+                className="text-white/70 hover:text-white"
+                onClick={handleUsersLinkClick}
+                link={{
+                  label: "Usuários",
+                  href: "/admin/users",
+                  icon: <Users className="h-5 w-5 flex-shrink-0" />,
                 }}
-              >
-                <Users className="h-5 w-5 mr-3" />
-                Usuários
-              </Button>
+              />
             )}
-          </nav>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-white/10 space-y-2">
-            <Button
-              variant="ghost"
-              className="w-full justify-start rounded-xl h-11 text-white/80 hover:text-white hover:bg-white/10 border border-white/20"
-              onClick={() => {
-                if (username) window.open(buildSubdomainUrl(username), "_blank");
-                setMenuOpen(false);
-              }}
-              disabled={!username}
-            >
-              <ExternalLink className="h-5 w-5 mr-3" />
-              Ver minha página
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start rounded-xl h-11 text-white/60 hover:text-white hover:bg-white/10"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-5 w-5 mr-3" />
-              Sair
-            </Button>
           </div>
-        </SheetContent>
-      </Sheet>
+        </div>
 
-      <img src={biobrLogo} alt="VtrineBio" className="h-7 ml-3" />
+        <div className="flex flex-col gap-1 border-t border-white/10 pt-4">
+          <SidebarActionButton
+            icon={ExternalLink}
+            label="Ver minha página"
+            disabled={!username}
+            onClick={() => {
+              if (username) window.open(buildSubdomainUrl(username), "_blank");
+            }}
+          />
+          <SidebarActionButton icon={LogOut} label="Sair" onClick={handleSignOut} />
+        </div>
+      </SidebarBody>
 
       <QrCodeModal open={qrOpen} onOpenChange={setQrOpen} username={username} />
-    </header>
+    </Sidebar>
   );
 }
