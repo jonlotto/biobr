@@ -61,6 +61,9 @@ export interface EditorProfile {
   titleFont: string;
   titleColor: string | null;
   titleSize: "small" | "large";
+  // Verified badge next to the display name - free for any shop owner to
+  // enable for now, no plan restriction. Defaults to false.
+  showVerifiedBadge: boolean;
 }
 
 export interface EditorState {
@@ -109,6 +112,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
       titleFont: "Inter",
       titleColor: null,
       titleSize: "large",
+      showVerifiedBadge: false,
     },
     links: [],
     isDirty: false,
@@ -183,6 +187,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           titleFont: (profile as any)?.title_font || "Inter",
           titleColor: (profile as any)?.title_color || null,
           titleSize: ((profile as any)?.title_size as "small" | "large") || "large",
+          showVerifiedBadge: (profile as any)?.show_verified_badge ?? false,
         };
         const loadedLinks: EditorLink[] = (links || []).map((link) => ({
           id: link.id,
@@ -262,6 +267,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           title_font: currentState.profile.titleFont,
           title_color: currentState.profile.titleColor,
           title_size: currentState.profile.titleSize,
+          show_verified_badge: currentState.profile.showVerifiedBadge,
           updated_at: new Date().toISOString(),
         } as any)
         .eq("user_id", user.id);

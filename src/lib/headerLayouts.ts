@@ -1,4 +1,4 @@
-export type HeaderLayout = "classic" | "banner" | "banner-wave" | "banner-card";
+export type HeaderLayout = "classic" | "banner" | "banner-wave" | "banner-card" | "editorial-badge";
 
 export interface HeaderLayoutOption {
   id: HeaderLayout | "cutout";
@@ -13,6 +13,7 @@ export const HEADER_LAYOUTS: HeaderLayoutOption[] = [
   { id: "banner", label: "Banner" },
   { id: "banner-wave", label: "Banner Wave" },
   { id: "banner-card", label: "Banner Card" },
+  { id: "editorial-badge", label: "Selo Editorial" },
   { id: "cutout", label: "Cutout", locked: true },
 ];
 
@@ -21,9 +22,10 @@ export const HEADER_LAYOUT_LABELS: Record<HeaderLayout, string> = {
   banner: "Banner",
   "banner-wave": "Banner Wave",
   "banner-card": "Banner Card",
+  "editorial-badge": "Selo Editorial",
 };
 
-const VALID_HEADER_LAYOUTS = new Set<string>(["classic", "banner", "banner-wave", "banner-card"]);
+const VALID_HEADER_LAYOUTS = new Set<string>(["classic", "banner", "banner-wave", "banner-card", "editorial-badge"]);
 
 /**
  * `headerLayout` is null for every profile that existed before this feature

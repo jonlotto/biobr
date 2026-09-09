@@ -77,6 +77,15 @@ function ButtonLayoutThumb({ layoutId }: { layoutId: string }) {
     );
   }
 
+  if (layoutId === "banner") {
+    return (
+      <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-md bg-primary/70">
+        <div className="h-6 w-6 rounded-full bg-white/30" />
+        <div className="absolute bottom-1 left-1 h-2 w-6 rounded-full bg-white/85" />
+      </div>
+    );
+  }
+
   // locked placeholders
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-muted/40 px-2">

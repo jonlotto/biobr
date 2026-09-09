@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { VerifiedBadge } from "@/components/icons/VerifiedBadge";
 
 interface ProfileHeaderProps {
   displayName: string;
@@ -10,6 +11,7 @@ interface ProfileHeaderProps {
   titleFont?: string;
   titleColor?: string | null;
   titleSize?: "small" | "large";
+  showVerifiedBadge?: boolean;
 }
 
 const ProfileHeader = ({
@@ -21,6 +23,7 @@ const ProfileHeader = ({
   titleFont = "Inter",
   titleColor,
   titleSize = "large",
+  showVerifiedBadge = false,
 }: ProfileHeaderProps) => {
   const initials = displayName
     .split(" ")
@@ -39,17 +42,18 @@ const ProfileHeader = ({
       </Avatar>
       
       <div className="space-y-1">
-        <h1 
+        <h1
           className={cn(
-            "font-bold",
+            "flex items-center justify-center gap-1 font-bold",
             titleSize === "small" ? "text-xl" : "text-2xl"
           )}
-          style={{ 
+          style={{
             fontFamily: titleFont,
-            color: titleColor || undefined 
+            color: titleColor || undefined
           }}
         >
-          {displayName}
+          <span className="truncate">{displayName}</span>
+          {showVerifiedBadge && <VerifiedBadge className="h-4 w-4 shrink-0" />}
         </h1>
         <p 
           style={{ 

@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { VerifiedBadge } from "@/components/icons/VerifiedBadge";
 import { EditorProfile } from "@/hooks/useEditorState";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -64,6 +66,20 @@ function LayoutThumb({ layoutId, avatarUrl, primaryColor }: { layoutId: string; 
         <div className="absolute left-1/2 top-[46%] flex -translate-x-1/2 items-center gap-1 rounded-md border border-border bg-white px-1.5 py-1 shadow">
           <div className="h-3 w-3 shrink-0 overflow-hidden rounded-sm bg-muted-foreground/20">{avatarNode}</div>
           <div className="h-1 w-6 rounded-full bg-muted-foreground/30" />
+        </div>
+      </div>
+    );
+  }
+
+  if (layoutId === "editorial-badge") {
+    return (
+      <div className="flex h-full w-full items-center gap-1.5 bg-neutral-900 px-2">
+        <div className="h-6 w-6 shrink-0 overflow-hidden rounded-full ring-2 ring-white/40 ring-offset-1 ring-offset-neutral-900">
+          {avatarNode}
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="h-1 w-8 rounded-full bg-white" />
+          <div className="h-1 w-10 rounded-full bg-white/40" />
         </div>
       </div>
     );
@@ -261,7 +277,9 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
         />
       </div>
 
-      {/* Bio */}
+      {/* Bio - the "Selo Editorial" layout renders this as a longer
+          descriptive paragraph next to the badge, so it gets more room here
+          than the one-liner other layouts show under the avatar. */}
       <div className="space-y-2">
         <Label htmlFor="bio">Bio</Label>
         <Textarea
@@ -269,11 +287,29 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
           value={profile.bio}
           onChange={(e) => onUpdate({ bio: e.target.value })}
           placeholder="Uma breve descrição sobre você..."
-          rows={3}
+          rows={selectedLayout === "editorial-badge" ? 4 : 3}
         />
         <p className="text-xs text-muted-foreground">
-          {profile.bio.length}/150 caracteres
+          {profile.bio.length}/{selectedLayout === "editorial-badge" ? 300 : 150} caracteres
         </p>
+      </div>
+
+      {/* Verified Badge Toggle - free for any shop owner to enable for now,
+          no plan restriction. */}
+      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5">
+            <Label className="text-sm font-medium">Verificado</Label>
+            <VerifiedBadge className="h-4 w-4 shrink-0" color="#f97316" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Mostra o selo de verificado ao lado do seu nome.
+          </p>
+        </div>
+        <Switch
+          checked={profile.showVerifiedBadge}
+          onCheckedChange={(checked) => onUpdate({ showVerifiedBadge: checked })}
+        />
       </div>
 
       {/* Layout Section */}
@@ -315,8 +351,10 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
       </div>
 
       {/* Banner Section - only relevant for the banner-style layouts, which
-          fall back to the theme's own gradient when no image is uploaded */}
-      {selectedLayout !== "classic" && (
+          fall back to the theme's own gradient when no image is uploaded.
+          "Selo Editorial" uses a solid dark background instead, so it has no
+          banner image to configure. */}
+      {selectedLayout !== "classic" && selectedLayout !== "editorial-badge" && (
       <div className="space-y-3">
         <label className="text-sm font-medium">Banner</label>
         <div

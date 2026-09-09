@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { getLinkIconComponent, getLinkIconEntry, type IconVariant } from "@/lib/linkIcons";
 import { hexToRgba } from "@/lib/color";
+import { VerifiedBadge } from "@/components/icons/VerifiedBadge";
 
 // Shown in the buttons area of the preview when the user hasn't added any real
 // button yet, so the empty state still demonstrates the selected theme.
@@ -17,9 +18,9 @@ const EXAMPLE_BUTTONS: { label: string; icon: string }[] = [
   { label: "Instagram", icon: "si-instagram" },
 ];
 
-export const renderPreviewIcon = (icon: string | undefined, size: "sm" | "md" = "sm", variant?: IconVariant) => {
+export const renderPreviewIcon = (icon: string | undefined, size: "sm" | "md" | "lg" | "xl" = "sm", variant?: IconVariant) => {
   if (!icon) return null;
-  const sizeClass = size === "sm" ? "w-4 h-4" : "w-5 h-5";
+  const sizeClass = size === "sm" ? "w-4 h-4" : size === "md" ? "w-5 h-5" : size === "lg" ? "w-8 h-8" : "w-20 h-20";
   const Icon = getLinkIconComponent(icon);
   if (Icon) return <Icon className={cn(sizeClass, "shrink-0")} variant={variant} title={getLinkIconEntry(icon)?.label} />;
   return <span className="shrink-0">{icon}</span>;
@@ -83,6 +84,15 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
   // banner image yet - a diagonal gradient built from the theme's own colors.
   const bannerGradient = `linear-gradient(135deg, ${template.styles.primaryColor}, ${template.styles.accentColor})`;
 
+  // "Selo Editorial" always reads as a dark banner regardless of theme - it
+  // uses the page's own solid background color when the user configured one
+  // (so it stays in the same family as the rest of the page), otherwise a
+  // fixed dark fallback, since a gradient can't be reused as a flat fill here.
+  const editorialBadgeBg =
+    profile.globalBackgroundColor && !profile.globalBackgroundColor.startsWith("linear-gradient")
+      ? profile.globalBackgroundColor
+      : "#111827";
+
   const renderAvatar = (sizeClassName: string, extraClassName?: string, style?: CSSProperties) => (
     <Avatar
       className={cn(
@@ -123,14 +133,15 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
       </p>
       <h1
         className={cn(
-          "text-center font-bold mb-2",
+          "flex items-center justify-center gap-1 text-center font-bold mb-2",
           profile.titleSize === "small" ? "text-lg" : "text-xl",
           !profile.titleColor && (colorClass ?? template.styles.textColor),
           textClassName,
         )}
         style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
       >
-        {profile.displayName || "Nome de Exibição"}
+        <span className="truncate">{profile.displayName || "Nome de Exibição"}</span>
+        {profile.showVerifiedBadge && <VerifiedBadge className="h-4 w-4 shrink-0" />}
       </h1>
     </>
   );
@@ -215,7 +226,7 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
                     shape === "round" ? "rounded-full" : "rounded-none",
                   )}
                 >
-                  {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderPreviewIcon(item.icon, "sm", item.iconVariant)}
+                  {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderPreviewIcon(item.icon, "lg", item.iconVariant)}
                 </span>
               )}
               <span className="text-sm">{item.title}</span>
@@ -338,6 +349,65 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     </div>
   );
 
+  // Perceived luminance of a solid hex fill - used only by the "banner" list
+  // below to decide whether its title pill should be light-on-dark or
+  // dark-on-light, since that card's own background is the button's actual
+  // fill color (not a fixed theme surface the way other layouts' chips are).
+  const isLightHex = (hex?: string): boolean => {
+    if (!hex) return !template.styles.buttonText?.includes("white");
+    const clean = hex.replace("#", "");
+    if (clean.length !== 6) return !template.styles.buttonText?.includes("white");
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
+  };
+
+  const renderBannerList = () => (
+    <div className="space-y-4 mb-6">
+      {displayButtons.map((item) => {
+        const hasImage = !!item.thumbnailUrl;
+        // No image: the card's own fill color decides the pill's contrast
+        // scheme. With an image, the photo's content is unknown ahead of
+        // time, so the pill always defaults to the safer light-on-dark form.
+        const pillIsLight = hasImage || !isLightHex(globalBgColor);
+        return (
+          <button
+            key={item.key}
+            type="button"
+            className={cn(
+              "group relative block h-[130px] w-full overflow-hidden rounded-[14px] text-left transition-all",
+              !hasImage && buttonFillClassName(item.isExample),
+              interactive && !item.isExample && "hover:scale-[1.01] cursor-pointer",
+            )}
+            style={!hasImage ? buttonFillStyle() : undefined}
+            onClick={() => !item.isExample && item.linkId && handleClick("link", item.linkId)}
+          >
+            {hasImage ? (
+              <img src={item.thumbnailUrl!} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              item.icon && (
+                <span className="absolute inset-0 flex items-center justify-center opacity-35 pointer-events-none">
+                  {renderPreviewIcon(item.icon, "xl", item.iconVariant)}
+                </span>
+              )
+            )}
+
+            <span
+              className={cn(
+                "absolute bottom-2.5 left-2.5 max-w-[calc(100%-20px)] truncate rounded-full px-3 py-1.5 text-sm font-medium backdrop-blur-sm",
+                pillIsLight ? "bg-white/85 text-neutral-900" : "bg-black/70 text-white",
+              )}
+              style={{ fontFamily: profile.titleFont || "Inter" }}
+            >
+              {item.title}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   const renderButtonsAndSocials = () => (
     <>
       {buttonLayout === "unified-card"
@@ -346,7 +416,9 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
           ? renderOverlapAlternateList()
           : buttonLayout === "card-overlap-alternate"
             ? renderCardOverlapAlternateList()
-            : renderPillList(buttonLayout === "pill-round-icon" ? "round" : "square")}
+            : buttonLayout === "banner"
+              ? renderBannerList()
+              : renderPillList(buttonLayout === "pill-round-icon" ? "round" : "square")}
 
       {socials.length > 0 && (
         <div className="flex justify-center gap-4 flex-wrap">
@@ -472,11 +544,12 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
               </div>
               <div className="min-w-0 flex-1 text-left">
                 <h1
-                  className={cn("truncate font-bold", !profile.titleColor && template.styles.textColor)}
+                  className={cn("flex items-center gap-1 truncate font-bold", !profile.titleColor && template.styles.textColor)}
                   style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
                   onClick={() => handleClick("username")}
                 >
-                  {profile.displayName || "Nome de Exibição"}
+                  <span className="truncate">{profile.displayName || "Nome de Exibição"}</span>
+                  {profile.showVerifiedBadge && <VerifiedBadge className="h-3.5 w-3.5 shrink-0" />}
                 </h1>
                 <p
                   className={cn("truncate text-sm opacity-70", !profile.titleColor && template.styles.textColor)}
@@ -484,6 +557,47 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
                   onClick={() => handleClick("bio")}
                 >
                   {profile.bio || `@${profile.handle || profile.username || "usuario"}`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-6 pt-6 pb-6">{renderButtonsAndSocials()}</div>
+        </>
+      ) : headerLayout === "editorial-badge" ? (
+        <>
+          {/* Editorial Badge Layout - a solid dark section with a stamped
+              circular avatar on the left and an uppercase title + longer
+              description on the right, side by side. Self-contained: no
+              separate @handle line below, since the badge + title + bio
+              already cover identification. Buttons render below, outside
+              the dark section. */}
+          <div className="px-6 py-8" style={{ backgroundColor: editorialBadgeBg }}>
+            <div className="flex items-center gap-4">
+              {renderAvatar("h-16 w-16 shrink-0", undefined, {
+                boxShadow: `0 0 0 3px ${editorialBadgeBg}, 0 0 0 5px rgba(255,255,255,0.55)`,
+              })}
+              <div className="min-w-0 flex-1 text-left">
+                <h1
+                  className={cn(
+                    "flex items-center gap-1 truncate text-base font-bold uppercase tracking-wide text-white transition-opacity",
+                    interactive && "cursor-pointer hover:opacity-80",
+                  )}
+                  style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
+                  onClick={() => handleClick("username")}
+                >
+                  <span className="truncate">{profile.displayName || "Nome de Exibição"}</span>
+                  {profile.showVerifiedBadge && <VerifiedBadge className="h-4 w-4 shrink-0" />}
+                </h1>
+                <p
+                  className={cn(
+                    "mt-1 text-[11px] leading-snug text-white/60 transition-opacity",
+                    interactive && "cursor-pointer hover:opacity-80",
+                  )}
+                  style={{ fontFamily: profile.titleFont || "Inter" }}
+                  onClick={() => handleClick("bio")}
+                >
+                  {profile.bio || "Sua descrição aqui..."}
                 </p>
               </div>
             </div>

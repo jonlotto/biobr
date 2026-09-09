@@ -3,7 +3,8 @@ export type ButtonLayout =
   | "overlap-alternate"
   | "pill-square-icon"
   | "pill-round-icon"
-  | "card-overlap-alternate";
+  | "card-overlap-alternate"
+  | "banner";
 
 export interface ButtonLayoutOption {
   id: ButtonLayout | string;
@@ -13,16 +14,16 @@ export interface ButtonLayoutOption {
 }
 
 // Order matches the 2x4 grid picker in Personalizar Design > Botões. The last
-// three slots are reserved placeholders for models not designed/implemented yet.
+// two slots are reserved placeholders for models not designed/implemented yet.
 export const BUTTON_LAYOUTS: ButtonLayoutOption[] = [
   { id: "unified-card", label: "Card Único" },
   { id: "overlap-alternate", label: "Ícone Alternado" },
   { id: "pill-square-icon", label: "Pílula Quadrada" },
   { id: "pill-round-icon", label: "Pílula Redonda" },
   { id: "card-overlap-alternate", label: "Card com Ícone" },
+  { id: "banner", label: "Banner" },
   { id: "locked-1", label: "Em breve", locked: true },
   { id: "locked-2", label: "Em breve", locked: true },
-  { id: "locked-3", label: "Em breve", locked: true },
 ];
 
 export const BUTTON_LAYOUT_LABELS: Record<ButtonLayout, string> = {
@@ -31,6 +32,7 @@ export const BUTTON_LAYOUT_LABELS: Record<ButtonLayout, string> = {
   "pill-square-icon": "Pílula Quadrada",
   "pill-round-icon": "Pílula Redonda",
   "card-overlap-alternate": "Card com Ícone",
+  banner: "Banner",
 };
 
 const VALID_BUTTON_LAYOUTS = new Set<string>([
@@ -39,6 +41,7 @@ const VALID_BUTTON_LAYOUTS = new Set<string>([
   "pill-square-icon",
   "pill-round-icon",
   "card-overlap-alternate",
+  "banner",
 ]);
 
 /**

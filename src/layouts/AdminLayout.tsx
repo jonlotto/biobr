@@ -80,12 +80,11 @@ export default function AdminLayout() {
   // Snapshot of the social link being edited, if the clicked platform already
   // has one configured — used only to pre-fill the modal's input value.
   const [editingSocial, setEditingSocial] = useState<EditorLink | null>(null);
-  // handleAddLink creates the link in local state immediately (so autosave
-  // can persist it as the user types) and opens the drawer pointed at that
-  // same id - so by the time the drawer renders, `selectedLink` is already
-  // populated and can't tell "new" from "editing an existing link" on its
-  // own. This tracks which of the two just happened, so the drawer's
-  // title/subtitle can say the right thing.
+  // Whether the drawer is open to create a brand-new link rather than edit
+  // an existing one - the link only enters local state (via addLink) once
+  // the drawer's own Save is confirmed, so Cancel/overlay/X never leaves a
+  // stray "Novo Link" behind for autosave to persist. While true,
+  // `selectedLinkId` stays null (there's no link yet to select).
   const [isCreatingLink, setIsCreatingLink] = useState(false);
 
   // The design view has no autosave - warn before discarding unsaved edits.
@@ -150,20 +149,7 @@ export default function AdminLayout() {
   const selectedLink = links.find((l) => l.id === selectedLinkId);
 
   const handleAddLink = () => {
-    const newId = addLink({
-      title: "Novo Link",
-      url: "https://",
-      icon: null,
-      iconVariant: null,
-      thumbnailUrl: null,
-      linkType: "button",
-      style: "filled",
-      isActive: true,
-      buttonBgColor: null,
-      buttonTextColor: null,
-      buttonBorderRadius: "rounded-xl",
-    });
-    setSelectedLinkId(newId);
+    setSelectedLinkId(null);
     setIsCreatingLink(true);
   };
 
@@ -213,10 +199,20 @@ export default function AdminLayout() {
   };
 
   const handleSaveLink = (data: Pick<EditorLink, "title" | "url" | "icon" | "iconVariant" | "isActive"> & { thumbnailUrl?: string | null }) => {
-    if (selectedLinkId) {
+    if (isCreatingLink) {
+      addLink({
+        ...data,
+        thumbnailUrl: data.thumbnailUrl ?? null,
+        linkType: "button",
+        style: "filled",
+        buttonBgColor: null,
+        buttonTextColor: null,
+        buttonBorderRadius: "rounded-xl",
+      });
+      setIsCreatingLink(false);
+    } else if (selectedLinkId) {
       updateLink(selectedLinkId, { ...data, thumbnailUrl: data.thumbnailUrl ?? null });
       setSelectedLinkId(null);
-      setIsCreatingLink(false);
     }
   };
 
@@ -350,7 +346,7 @@ export default function AdminLayout() {
 
       {/* Button Edit Drawer - only for links view */}
       <ButtonEditDrawer
-        open={!!selectedLinkId}
+        open={isCreatingLink || !!selectedLinkId}
         onClose={() => {
           setSelectedLinkId(null);
           setIsCreatingLink(false);

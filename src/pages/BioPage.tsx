@@ -12,6 +12,7 @@ import { extractSubdomain } from "@/utils/subdomain";
 import { resolveHeaderLayout } from "@/lib/headerLayouts";
 import { resolveButtonLayout } from "@/lib/buttonLayouts";
 import { hexToRgba } from "@/lib/color";
+import { VerifiedBadge } from "@/components/icons/VerifiedBadge";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
@@ -152,6 +153,13 @@ const BioPage = () => {
   // banner image yet - a diagonal gradient built from the theme's own colors.
   const bannerGradient = `linear-gradient(135deg, ${template.styles.primaryColor}, ${template.styles.accentColor})`;
 
+  // "Selo Editorial" always reads as a dark banner regardless of theme - see
+  // the same comment in BioPreviewContent.tsx.
+  const editorialBadgeBg =
+    profile?.global_background_color && !profile.global_background_color.startsWith("linear-gradient")
+      ? profile.global_background_color
+      : "#111827";
+
   // Separate links by type
   const buttons = links.filter(l => l.link_type !== "social");
   const socials = links.filter(l => l.link_type === "social");
@@ -169,6 +177,19 @@ const BioPage = () => {
   // below, so the two "pill" layouts read as visually distinct.
   const linkBorderRadius = "rounded-full";
   const linkFontFamily = (profile as any)?.title_font || "Inter";
+
+  // Perceived luminance of a solid hex fill - used only by the "banner"
+  // layout to decide whether its title pill should be light-on-dark or
+  // dark-on-light, since that card's own background is the button's actual
+  // fill color, always a real hex here (custom color or the theme's own).
+  const isLightHex = (hex: string): boolean => {
+    const clean = hex.replace("#", "");
+    if (clean.length !== 6) return false;
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
+  };
 
   const linkFillStyle: React.CSSProperties = {
     backgroundColor: hexToRgba(linkBgColor, linkBgOpacity),
@@ -239,7 +260,7 @@ const BioPage = () => {
                   shape === "round" ? "rounded-full" : "rounded-none",
                 )}
               >
-                {thumbnailUrl ? <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderIcon(link.icon || undefined, "w-5 h-5 shrink-0", (link as any).icon_variant || undefined)}
+                {thumbnailUrl ? <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" /> : renderIcon(link.icon || undefined, "w-8 h-8 shrink-0", (link as any).icon_variant || undefined)}
               </span>
             )}
             <span className="text-sm font-medium">{link.title}</span>
@@ -360,6 +381,52 @@ const BioPage = () => {
     </div>
   );
 
+  const renderBannerLinks = () => (
+    <div className="space-y-4">
+      {buttons.map((link, index) => {
+        const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
+        const hasImage = !!thumbnailUrl;
+        // No image: the card's own fill color decides the pill's contrast
+        // scheme. With an image, the photo's content is unknown ahead of
+        // time, so the pill always defaults to the safer light-on-dark form.
+        const pillIsLight = hasImage || !isLightHex(linkBgColor);
+        return (
+          <a
+            key={link.id}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "group relative block h-[130px] w-full overflow-hidden rounded-[14px] transition-all hover:scale-[1.01] animate-slide-up opacity-0",
+            )}
+            style={{ animationDelay: `${index * 100}ms`, ...(!hasImage ? linkFillStyle : {}) }}
+          >
+            {hasImage ? (
+              <img src={thumbnailUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              link.icon &&
+              renderIcon(
+                link.icon || undefined,
+                "absolute inset-0 m-auto w-20 h-20 opacity-35 pointer-events-none",
+                (link as any).icon_variant || undefined,
+              )
+            )}
+
+            <span
+              className={cn(
+                "absolute bottom-2.5 left-2.5 max-w-[calc(100%-20px)] truncate rounded-full px-3 py-1.5 text-sm font-medium backdrop-blur-sm",
+                pillIsLight ? "bg-white/85 text-neutral-900" : "bg-black/70 text-white",
+              )}
+              style={{ fontFamily: linkFontFamily }}
+            >
+              {link.title}
+            </span>
+          </a>
+        );
+      })}
+    </div>
+  );
+
   const renderLinksAndSocials = () => (
     <>
       {buttons.length === 0 && socials.length === 0 ? (
@@ -373,7 +440,9 @@ const BioPage = () => {
             ? renderOverlapAlternateLinks()
             : resolvedButtonLayout === "card-overlap-alternate"
               ? renderCardOverlapAlternateLinks()
-              : renderPillLinks(resolvedButtonLayout === "pill-round-icon" ? "round" : "square")
+              : resolvedButtonLayout === "banner"
+                ? renderBannerLinks()
+                : renderPillLinks(resolvedButtonLayout === "pill-round-icon" ? "round" : "square")
       ) : null}
 
       {socials.length > 0 && (
@@ -465,13 +534,14 @@ const BioPage = () => {
                     </p>
                     <h1
                       className={cn(
-                        "font-bold mb-2",
+                        "flex items-center justify-center gap-1 font-bold mb-2",
                         (profile as any).title_size === "small" ? "text-xl" : "text-2xl",
                         !(profile as any).title_color && template.styles.textColor,
                       )}
                       style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
                     >
-                      {profile.display_name || profile.username}
+                      <span className="truncate">{profile.display_name || profile.username}</span>
+                      {(profile as any).show_verified_badge && <VerifiedBadge className="h-4 w-4 shrink-0" />}
                     </h1>
                     {profile.bio && (
                       <p
@@ -516,16 +586,57 @@ const BioPage = () => {
                   </div>
                   <div className="min-w-0 flex-1 text-left">
                     <h1
-                      className={cn("truncate font-bold", !(profile as any).title_color && template.styles.textColor)}
+                      className={cn("flex items-center gap-1 truncate font-bold", !(profile as any).title_color && template.styles.textColor)}
                       style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
                     >
-                      {profile.display_name || profile.username}
+                      <span className="truncate">{profile.display_name || profile.username}</span>
+                      {(profile as any).show_verified_badge && <VerifiedBadge className="h-3.5 w-3.5 shrink-0" />}
                     </h1>
                     <p
                       className={cn("truncate text-sm opacity-70", !(profile as any).title_color && template.styles.textColor)}
                       style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
                     >
                       {profile.bio || `@${(profile as any).handle || profile.username}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-4 pt-6 pb-12">{renderLinksAndSocials()}</div>
+            </div>
+          </div>
+        ) : headerLayout === "editorial-badge" && profile ? (
+          // Editorial Badge Layout - a solid dark section with a stamped
+          // circular avatar on the left and an uppercase title + longer
+          // description on the right, side by side. Self-contained: no
+          // separate @handle line below. Buttons render below, outside the
+          // dark section.
+          <div className="min-h-full flex flex-col items-center">
+            <div className="w-full max-w-md">
+              <div className="px-4 py-8" style={{ backgroundColor: editorialBadgeBg }}>
+                <div className="flex items-center gap-4">
+                  <Avatar
+                    className="h-16 w-16 shrink-0"
+                    style={{ boxShadow: `0 0 0 3px ${editorialBadgeBg}, 0 0 0 5px rgba(255,255,255,0.55)` }}
+                  >
+                    <AvatarImage src={profile.avatar_url || undefined} />
+                    <AvatarFallback className={cn(template.styles.cardBg, template.styles.textColor)}>
+                      {(profile.display_name || profile.username)?.charAt(0) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1 text-left">
+                    <h1
+                      className="flex items-center gap-1 truncate text-base font-bold uppercase tracking-wide text-white"
+                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
+                    >
+                      <span className="truncate">{profile.display_name || profile.username}</span>
+                      {(profile as any).show_verified_badge && <VerifiedBadge className="h-4 w-4 shrink-0" />}
+                    </h1>
+                    <p
+                      className="mt-1 text-[11px] leading-snug text-white/60"
+                      style={{ fontFamily: (profile as any).title_font || "Inter" }}
+                    >
+                      {profile.bio || "Sua descrição aqui..."}
                     </p>
                   </div>
                 </div>
@@ -547,6 +658,7 @@ const BioPage = () => {
                 titleFont={(profile as any).title_font || "Inter"}
                 titleColor={(profile as any).title_color}
                 titleSize={(profile as any).title_size || "large"}
+                showVerifiedBadge={(profile as any).show_verified_badge || false}
               />
             )}
 

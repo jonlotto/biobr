@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EditorProfile, EditorLink } from "@/hooks/useEditorState";
 import { templates } from "@/data/templates";
-import { getProfileBackgroundStyle, hasCustomProfileBackground } from "@/lib/templateBackground";
 import { hexToRgba } from "@/lib/color";
 import { HEADER_LAYOUT_LABELS, resolveHeaderLayout } from "@/lib/headerLayouts";
 import { BUTTON_LAYOUT_LABELS, resolveButtonLayout } from "@/lib/buttonLayouts";
@@ -26,61 +25,6 @@ interface DesignDrilldownViewProps {
 
 type CategoryId = "theme" | "header" | "buttons" | "text" | "colors";
 
-// Compact banner-style preview - not a smaller phone mockup, just a strip
-// showing avatar + handle and a couple of illustrative button shapes, using
-// the same theme tokens/state as the full preview so it's never out of sync.
-function CompactPreviewBar({ profile }: { profile: EditorProfile }) {
-  const template = templates.find((t) => t.slug === profile.templateSlug) || templates[0];
-  const backgroundStyle = getProfileBackgroundStyle(profile, template);
-  const hasCustomBackground = hasCustomProfileBackground(profile);
-  const hasProfileIdentity = !!(profile.displayName || profile.username);
-
-  // Style/shape are fixed - see the same comment in BioPreviewContent.tsx.
-  const buttonBorderRadius = "rounded-full";
-  const hasCustomButtonColors = profile.globalButtonBgColor || profile.globalButtonTextColor;
-
-  return (
-    <div
-      className={cn("flex shrink-0 items-center justify-between gap-3 px-4 py-3", !hasCustomBackground && template.styles.background)}
-      style={backgroundStyle}
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        <Avatar
-          className={cn("h-10 w-10 shrink-0 border-2 border-white/70 shadow-sm", template.styles.avatarBorder)}
-        >
-          <AvatarImage src={profile.avatarUrl || undefined} />
-          <AvatarFallback
-            className={cn(
-              "flex items-center justify-center",
-              hasProfileIdentity ? cn(template.styles.cardBg, template.styles.textColor) : template.styles.textColor,
-            )}
-            style={!hasProfileIdentity ? { backgroundColor: `${template.styles.primaryColor}40` } : undefined}
-          >
-            {profile.displayName?.charAt(0) || profile.username?.charAt(0) || <User className="h-4 w-4 opacity-70" />}
-          </AvatarFallback>
-        </Avatar>
-        <span className={cn("truncate text-sm font-medium", template.styles.textColor)}>
-          @{profile.handle || profile.username || "usuario"}
-        </span>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-1.5">
-        {["w-10", "w-7"].map((widthClass, i) => (
-          <div
-            key={i}
-            className={cn("h-4", widthClass, buttonBorderRadius, !hasCustomButtonColors && template.styles.buttonBg)}
-            style={
-              hasCustomButtonColors
-                ? { backgroundColor: profile.globalButtonBgColor ? hexToRgba(profile.globalButtonBgColor, profile.globalButtonBgOpacity ?? 100) : undefined }
-                : undefined
-            }
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function CategoryRow({ label, value, thumbnail, onClick }: { label: string; value?: string; thumbnail: ReactNode; onClick: () => void }) {
   return (
     <button
@@ -96,11 +40,10 @@ function CategoryRow({ label, value, thumbnail, onClick }: { label: string; valu
   );
 }
 
-// Drill-down "Personalizar Design" screen: a compact live preview stays fixed
-// on top while a category list underneath opens full-screen sub-pages for
-// each option group. Used verbatim on both mobile and desktop (this used to
-// be a mobile-only view; the desktop sidebar + all-sections-stacked layout it
-// replaced is gone).
+// Drill-down "Personalizar Design" screen: a category list opens full-screen
+// sub-pages for each option group. Used verbatim on both mobile and desktop
+// (this used to be a mobile-only view; the desktop sidebar + all-sections-
+// stacked layout it replaced is gone).
 export function DesignDrilldownView({ profile, links, onUpdate, isSaving, isDirty, onSave }: DesignDrilldownViewProps) {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
 
@@ -153,8 +96,6 @@ export function DesignDrilldownView({ profile, links, onUpdate, isSaving, isDirt
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <CompactPreviewBar profile={profile} />
-
         <div className="mx-auto max-w-2xl px-4 py-6 md:px-6">
           {activeCategory === null ? (
             <div className="space-y-6">
