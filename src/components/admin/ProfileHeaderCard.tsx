@@ -163,7 +163,7 @@ export function ProfileHeaderCard({
             className="bg-transparent border-none outline-none text-sm font-medium text-foreground w-28 focus:ring-0 text-right"
             maxLength={30}
           />
-          <span className="text-sm font-medium text-primary">.vtrinebio.site</span>
+          <span className="text-sm font-medium text-primary">.vtrine.bio</span>
         </div>
       ) : (
         <div className="flex items-center gap-1 mt-3 px-4 py-2 bg-muted/50 rounded-full">
@@ -173,7 +173,7 @@ export function ProfileHeaderCard({
           >
             {profile.username || "usuario"}
           </span>
-          <span className="text-sm text-muted-foreground">.vtrinebio.site</span>
+          <span className="text-sm text-muted-foreground">.vtrine.bio</span>
           <button
             onClick={() => setIsEditingUsername(true)}
             className="p-1.5 rounded-full hover:bg-muted transition-colors"

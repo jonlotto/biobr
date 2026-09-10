@@ -4,8 +4,8 @@ import Index from "@/pages/Index";
 
 /**
  * Smart handler for root route (/)
- * - If accessed via subdomain (joao.vtrinebio.site): renders BioPage
- * - If accessed via main domain (vtrinebio.site): renders Index (landing page)
+ * - If accessed via subdomain (joao.vtrine.bio): renders BioPage
+ * - If accessed via main domain (vtrine.bio): renders Index (landing page)
  */
 const SubdomainHandler = () => {
   const subdomain = extractSubdomain();

@@ -4,7 +4,7 @@ import { buildSubdomainUrl, isDevelopment, isReservedPath } from "@/utils/subdom
 import BioPage from "@/pages/BioPage";
 
 /**
- * Handles redirect from /username path to username.vtrinebio.site subdomain
+ * Handles redirect from /username path to username.vtrine.bio subdomain
  * In development, renders BioPage directly
  */
 const UsernameRedirect = () => {
