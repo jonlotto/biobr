@@ -69,6 +69,7 @@ export default function AdminLayout() {
     duplicateLink,
     reorderLinks,
     save,
+    saveNow,
     discardChanges,
     selectedLinkId,
     setSelectedLinkId,
@@ -263,8 +264,14 @@ export default function AdminLayout() {
             {/* Profile Header Card */}
             <ProfileHeaderCard
               profile={profile}
-              onUpdateUsername={(newUsername) => updateProfile({ username: newUsername })}
-              onUpdateHandle={(newHandle) => updateProfile({ handle: newHandle })}
+              onUpdateUsername={(newUsername) => {
+                updateProfile({ username: newUsername });
+                saveNow();
+              }}
+              onUpdateHandle={(newHandle) => {
+                updateProfile({ handle: newHandle });
+                saveNow();
+              }}
             />
 
             {/* Add Link Button */}

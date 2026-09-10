@@ -87,6 +87,12 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
   const { user } = useAuth();
   const { toast } = useToast();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Mirrors `user` for the unmount-flush effect below, which can't take a
+  // dependency on `user` directly (it must only run its cleanup on true unmount).
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
   const [state, setState] = useState<EditorState>({
@@ -233,69 +239,70 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
     loadData();
   }, [user, initialTemplateSlug, toast]);
 
-  // Auto-save with debounce - use ref to avoid stale closure
-  const saveData = useCallback(async () => {
-    if (!user) return;
-
-    const currentState = stateRef.current;
-
-    setState((prev) => ({ ...prev, isSaving: true }));
-
-    try {
+  // Pure I/O: writes profile + links to Supabase without touching React
+  // state. Shared by the normal (setState-driven) save path and the
+  // unmount-flush path below, which must not call setState on a component
+  // that's already gone.
+  const persistToSupabase = useCallback(
+    async (
+      toSave: { profile: EditorProfile; links: EditorLink[] },
+      userId: string,
+      onLinkInserted?: (tempId: string, realId: string) => void
+    ) => {
       // Save profile
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
-          template_slug: currentState.profile.templateSlug,
-          avatar_url: currentState.profile.avatarUrl,
-          banner_url: currentState.profile.bannerUrl,
-          banner_original_url: currentState.profile.bannerOriginalUrl,
-          banner_crop_offset_y: currentState.profile.bannerCropOffsetY,
-          username: currentState.profile.username,
-          handle: currentState.profile.handle,
-          display_name: currentState.profile.displayName,
-          bio: currentState.profile.bio,
-          header_layout: currentState.profile.headerLayout,
-          button_layout: currentState.profile.buttonLayout,
-          global_button_bg_color: currentState.profile.globalButtonBgColor,
-          global_button_bg_opacity: currentState.profile.globalButtonBgOpacity,
-          global_button_text_color: currentState.profile.globalButtonTextColor,
-          global_background_color: currentState.profile.globalBackgroundColor,
-          global_background_image: currentState.profile.globalBackgroundImage,
-          global_button_style: currentState.profile.globalButtonStyle,
-          global_button_border_radius: currentState.profile.globalButtonBorderRadius,
-          title_font: currentState.profile.titleFont,
-          title_color: currentState.profile.titleColor,
-          title_size: currentState.profile.titleSize,
-          show_verified_badge: currentState.profile.showVerifiedBadge,
+          template_slug: toSave.profile.templateSlug,
+          avatar_url: toSave.profile.avatarUrl,
+          banner_url: toSave.profile.bannerUrl,
+          banner_original_url: toSave.profile.bannerOriginalUrl,
+          banner_crop_offset_y: toSave.profile.bannerCropOffsetY,
+          username: toSave.profile.username,
+          handle: toSave.profile.handle,
+          display_name: toSave.profile.displayName,
+          bio: toSave.profile.bio,
+          header_layout: toSave.profile.headerLayout,
+          button_layout: toSave.profile.buttonLayout,
+          global_button_bg_color: toSave.profile.globalButtonBgColor,
+          global_button_bg_opacity: toSave.profile.globalButtonBgOpacity,
+          global_button_text_color: toSave.profile.globalButtonTextColor,
+          global_background_color: toSave.profile.globalBackgroundColor,
+          global_background_image: toSave.profile.globalBackgroundImage,
+          global_button_style: toSave.profile.globalButtonStyle,
+          global_button_border_radius: toSave.profile.globalButtonBorderRadius,
+          title_font: toSave.profile.titleFont,
+          title_color: toSave.profile.titleColor,
+          title_size: toSave.profile.titleSize,
+          show_verified_badge: toSave.profile.showVerifiedBadge,
           updated_at: new Date().toISOString(),
         } as any)
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
 
       if (profileError) throw profileError;
 
       // Save links - delete removed, update existing, insert new
-      const existingIds = currentState.links.filter((l) => !l.id.startsWith("temp-")).map((l) => l.id);
-      
+      const existingIds = toSave.links.filter((l) => !l.id.startsWith("temp-")).map((l) => l.id);
+
       // Delete links not in current state
       if (existingIds.length > 0) {
         await supabase
           .from("links")
           .delete()
-          .eq("user_id", user.id)
+          .eq("user_id", userId)
           .not("id", "in", `(${existingIds.join(",")})`);
       } else {
-        await supabase.from("links").delete().eq("user_id", user.id);
+        await supabase.from("links").delete().eq("user_id", userId);
       }
 
-      // Mirrors currentState.links but with temp ids swapped for real ones as
+      // Mirrors toSave.links but with temp ids swapped for real ones as
       // they're inserted below, so the post-save snapshot reflects real ids.
-      const savedLinks = [...currentState.links];
+      const savedLinks = [...toSave.links];
 
       // Upsert all current links
-      for (const link of currentState.links) {
+      for (const link of toSave.links) {
         const linkData = {
-          user_id: user.id,
+          user_id: userId,
           title: link.title,
           url: link.url,
           icon: link.icon,
@@ -319,18 +326,9 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
             .single();
 
           if (newLink) {
-            setState((prev) => ({
-              ...prev,
-              links: prev.links.map((l) =>
-                l.id === link.id ? { ...l, id: newLink.id } : l
-              ),
-            }));
+            onLinkInserted?.(link.id, newLink.id);
             const savedIndex = savedLinks.findIndex((l) => l.id === link.id);
             if (savedIndex !== -1) savedLinks[savedIndex] = { ...savedLinks[savedIndex], id: newLink.id };
-            // Keep the currently-open editor pointed at the same link after
-            // its temp id is replaced by the real database id, otherwise a
-            // pending edit/save targets an id that no longer exists.
-            setSelectedLinkId((prev) => (prev === link.id ? newLink.id : prev));
           }
         } else {
           // Update existing link
@@ -340,6 +338,31 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
             .eq("id", link.id);
         }
       }
+
+      return savedLinks;
+    },
+    []
+  );
+
+  // Auto-save with debounce - use ref to avoid stale closure
+  const saveData = useCallback(async () => {
+    if (!user) return;
+
+    const currentState = stateRef.current;
+
+    setState((prev) => ({ ...prev, isSaving: true }));
+
+    try {
+      const savedLinks = await persistToSupabase(currentState, user.id, (tempId, realId) => {
+        setState((prev) => ({
+          ...prev,
+          links: prev.links.map((l) => (l.id === tempId ? { ...l, id: realId } : l)),
+        }));
+        // Keep the currently-open editor pointed at the same link after its
+        // temp id is replaced by the real database id, otherwise a pending
+        // edit/save targets an id that no longer exists.
+        setSelectedLinkId((prev) => (prev === tempId ? realId : prev));
+      });
 
       savedSnapshotRef.current = { profile: currentState.profile, links: savedLinks };
 
@@ -358,7 +381,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
       });
       setState((prev) => ({ ...prev, isSaving: false }));
     }
-  }, [user, toast]);
+  }, [user, toast, persistToSupabase]);
 
   // Trigger auto-save when dirty (skipped entirely when autosave is disabled -
   // in that mode, only the manual `save()` call below persists changes)
@@ -373,17 +396,43 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
       }
     };
   }, [autosave, state.isDirty, state.isLoading, saveData]);
 
+  // Flush a pending debounced save when the component actually unmounts (e.g.
+  // the user switches tabs right after an edit), so it isn't silently
+  // dropped by the clearTimeout above. This is a separate effect with no
+  // deps so its cleanup only fires on real unmount, not on every reschedule.
+  // Writes go straight through persistToSupabase (no setState) since the
+  // component is gone by the time this runs.
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      const finalState = stateRef.current;
+      const userId = userRef.current?.id;
+      if (finalState.isDirty && userId) {
+        persistToSupabase(finalState, userId).catch((error) => {
+          console.error("Error flushing pending save on unmount:", error);
+        });
+      }
+    };
+  }, [persistToSupabase]);
+
   // Update profile
   const updateProfile = useCallback((updates: Partial<EditorProfile>) => {
-    setState((prev) => ({
-      ...prev,
-      profile: { ...prev.profile, ...updates },
-      isDirty: true,
-    }));
+    setState((prev) => {
+      // Sync stateRef here (not just in the mirroring effect above) so that
+      // a `saveNow()` called right after this in the same handler reads the
+      // new value immediately, instead of a stale pre-update snapshot.
+      const next = { ...prev, profile: { ...prev.profile, ...updates }, isDirty: true };
+      stateRef.current = next;
+      return next;
+    });
   }, []);
 
   // Add link
@@ -453,13 +502,22 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
     }));
   }, []);
 
-  // Manual save
-  const save = useCallback(() => {
+  // Cancel any pending debounced save and persist immediately - awaitable, so
+  // callers can be sure the write went out before e.g. navigating away. Used
+  // when a field's edit is explicitly confirmed (blur/Enter), rather than
+  // relying solely on the debounce.
+  const saveNow = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
     }
-    saveData();
+    return saveData();
   }, [saveData]);
+
+  // Manual save
+  const save = useCallback(() => {
+    saveNow();
+  }, [saveNow]);
 
   // Revert local edits back to what's actually persisted - used when the
   // user chooses to leave with unsaved changes instead of saving them.
@@ -484,6 +542,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
     duplicateLink,
     reorderLinks,
     save,
+    saveNow,
     discardChanges,
     selectedLinkId,
     setSelectedLinkId,
