@@ -4,8 +4,6 @@ import { VerifiedBadge } from "@/components/icons/VerifiedBadge";
 
 interface ProfileHeaderProps {
   displayName: string;
-  username: string;
-  handle?: string;
   bio?: string;
   avatarUrl?: string;
   titleFont?: string;
@@ -16,8 +14,6 @@ interface ProfileHeaderProps {
 
 const ProfileHeader = ({
   displayName,
-  username,
-  handle,
   bio,
   avatarUrl,
   titleFont = "Inter",
@@ -55,16 +51,6 @@ const ProfileHeader = ({
           <span className="truncate">{displayName}</span>
           {showVerifiedBadge && <VerifiedBadge className="h-4 w-4 shrink-0" />}
         </h1>
-        <p 
-          style={{ 
-            fontFamily: titleFont,
-            color: titleColor || undefined,
-            opacity: titleColor ? 0.7 : undefined
-          }}
-          className={!titleColor ? "text-muted-foreground" : undefined}
-        >
-          @{handle || username}
-        </p>
       </div>
       
       {bio && (

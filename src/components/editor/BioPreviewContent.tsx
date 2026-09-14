@@ -120,33 +120,24 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     </Avatar>
   );
 
+  // No separate "@handle" line - it duplicated the display name for most
+  // profiles (same text twice), so clicking the name itself now opens the
+  // same username/handle editor that line used to.
   const renderTitleBlock = (textClassName?: string, colorClass?: string) => (
-    <>
-      <p
-        className={cn(
-          "text-center text-sm mb-1 transition-opacity",
-          interactive && "cursor-pointer hover:opacity-80",
-          !profile.titleColor && (colorClass ?? template.styles.textColor),
-          textClassName,
-        )}
-        style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
-        onClick={() => handleClick("username")}
-      >
-        @{profile.handle || profile.username || "usuario"}
-      </p>
-      <h1
-        className={cn(
-          "flex items-center justify-center gap-1 text-center font-bold mb-2",
-          profile.titleSize === "small" ? "text-lg" : "text-xl",
-          !profile.titleColor && (colorClass ?? template.styles.textColor),
-          textClassName,
-        )}
-        style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
-      >
-        <span className="truncate">{profile.displayName || "Nome de Exibição"}</span>
-        {profile.showVerifiedBadge && <VerifiedBadge className="h-4 w-4 shrink-0" />}
-      </h1>
-    </>
+    <h1
+      className={cn(
+        "flex items-center justify-center gap-1 text-center font-bold mb-2",
+        profile.titleSize === "small" ? "text-lg" : "text-xl",
+        !profile.titleColor && (colorClass ?? template.styles.textColor),
+        interactive && "cursor-pointer hover:opacity-80 transition-opacity",
+        textClassName,
+      )}
+      style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
+      onClick={() => handleClick("username")}
+    >
+      <span className="truncate">{profile.displayName || "Nome de Exibição"}</span>
+      {profile.showVerifiedBadge && <VerifiedBadge className="h-4 w-4 shrink-0" />}
+    </h1>
   );
 
   const renderBio = (textClassName?: string, colorClass?: string) => (

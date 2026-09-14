@@ -535,12 +535,6 @@ const BioPage = () => {
               <div className="pt-16">
                 <div className={cn("pb-12 px-4", !hasCustomBackground && template.styles.contentBg)}>
                   <div className="text-center mb-8 animate-fade-in">
-                    <p
-                      className={cn("text-sm mb-1 opacity-70", !(profile as any).title_color && template.styles.textColor)}
-                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
-                    >
-                      @{(profile as any).handle || profile.username}
-                    </p>
                     <h1
                       className={cn(
                         "flex items-center justify-center gap-1 font-bold mb-2",
@@ -660,8 +654,6 @@ const BioPage = () => {
             {profile && (
               <ProfileHeader
                 displayName={profile.display_name || profile.username}
-                username={profile.username}
-                handle={(profile as any).handle}
                 bio={profile.bio || undefined}
                 avatarUrl={profile.avatar_url || undefined}
                 titleFont={(profile as any).title_font || "Inter"}
