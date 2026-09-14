@@ -313,13 +313,15 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
 
       // Delete links not in current state
       if (existingIds.length > 0) {
-        await supabase
+        const { error: deleteError } = await supabase
           .from("links")
           .delete()
           .eq("user_id", userId)
           .not("id", "in", `(${existingIds.join(",")})`);
+        if (deleteError) throw deleteError;
       } else {
-        await supabase.from("links").delete().eq("user_id", userId);
+        const { error: deleteError } = await supabase.from("links").delete().eq("user_id", userId);
+        if (deleteError) throw deleteError;
       }
 
       // Mirrors toSave.links but with temp ids swapped for real ones as
@@ -347,11 +349,18 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
 
         if (link.id.startsWith("temp-")) {
           // Insert new link
-          const { data: newLink } = await supabase
+          const { data: newLink, error: insertError } = await supabase
             .from("links")
             .insert(linkData)
             .select()
             .single();
+
+          // supabase-js resolves (doesn't reject) on a query error, so a
+          // failed insert/update would otherwise pass through unnoticed:
+          // isDirty gets cleared as if it saved, while the local state
+          // (what the admin preview renders) and the database (what the
+          // public page queries) silently diverge - see BioPage.tsx.
+          if (insertError) throw insertError;
 
           if (newLink) {
             onLinkInserted?.(link.id, newLink.id);
@@ -360,10 +369,11 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           }
         } else {
           // Update existing link
-          await supabase
+          const { error: updateError } = await supabase
             .from("links")
             .update(linkData)
             .eq("id", link.id);
+          if (updateError) throw updateError;
         }
       }
 

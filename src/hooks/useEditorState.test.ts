@@ -29,7 +29,7 @@ const { responseQueue, mockSupabase, stableAuth, stableToastApi } = vi.hoisted((
   // `toast`, so a mock that returns a fresh object/function on every call
   // would retrigger that effect every render and loop forever.
   const stableAuth = { user: { id: "user-1" } };
-  const stableToastApi = { toast: () => {} };
+  const stableToastApi = { toast: vi.fn() };
   return { responseQueue, mockSupabase, stableAuth, stableToastApi };
 });
 
@@ -49,6 +49,7 @@ describe("useEditorState - add link race with autosave", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     responseQueue.length = 0;
+    stableToastApi.toast.mockClear();
   });
 
   afterEach(() => {
@@ -126,5 +127,62 @@ describe("useEditorState - add link race with autosave", () => {
     const savedLink = result.current.links.find((l) => l.id === "real-link-id-1");
     expect(savedLink?.title).toBe("Meu Site Real");
     expect(savedLink?.url).toBe("https://meusite.com");
+  });
+
+  // Regression test for the "Site Oficial" bug: a link toggled active in the
+  // admin preview never showed up on the public page. Root cause was that
+  // persistToSupabase never checked the `error` half of supabase-js's
+  // `{ data, error }` response - a failed insert/update was indistinguishable
+  // from success, so isDirty got cleared and no error toast fired, even
+  // though the database never actually received the write.
+  it("keeps isDirty true and surfaces a toast when a link insert fails, instead of silently pretending it saved", async () => {
+    responseQueue.push({ data: { username: "test", handle: "test" }, error: null });
+    responseQueue.push({ data: [], error: null });
+
+    const { result } = renderHook(() => useEditorState());
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(result.current.isLoading).toBe(false);
+
+    act(() => {
+      result.current.addLink({
+        title: "Site Oficial",
+        url: "https://example.com",
+        icon: null,
+        iconVariant: null,
+        thumbnailUrl: "https://example.com/banner.jpg",
+        linkType: "button",
+        style: "filled",
+        isActive: true,
+        buttonBgColor: null,
+        buttonTextColor: null,
+        buttonBorderRadius: "rounded-xl",
+        cardsData: null,
+      });
+    });
+    expect(result.current.isDirty).toBe(true);
+
+    // Profile update and links-delete both succeed; the link insert itself
+    // fails (e.g. an RLS/constraint rejection) - this is the case that used
+    // to be swallowed silently.
+    responseQueue.push({ error: null }); // profile update
+    responseQueue.push({ error: null }); // links delete
+    responseQueue.push({ data: null, error: { message: "insert rejected" } }); // link insert fails
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    // Must NOT look saved: isDirty stays true (so a retry/save is still
+    // pending) and the link never got a real id swapped in.
+    expect(result.current.isDirty).toBe(true);
+    expect(result.current.isSaving).toBe(false);
+    expect(result.current.links[0].id.startsWith("temp-")).toBe(true);
+    expect(stableToastApi.toast).toHaveBeenCalledWith(
+      expect.objectContaining({ variant: "destructive" }),
+    );
   });
 });
