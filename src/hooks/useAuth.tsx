@@ -18,12 +18,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Supabase hands back a brand-new `user` object on every auth event,
+  // including a silent TOKEN_REFRESHED when a tab regains focus - even when
+  // it's the same logged-in user. Keeping the old reference when id/email
+  // are unchanged avoids retriggering every effect/memo that depends on the
+  // whole `user` object elsewhere in the app (e.g. useEditorState's data
+  // load effect), which would otherwise overwrite in-progress edits.
+  const applyUser = (newUser: User | null) => {
+    setUser((prev) => (prev && newUser && prev.id === newUser.id && prev.email === newUser.email ? prev : newUser));
+  };
+
   useEffect(() => {
     // Set up auth state listener BEFORE checking session
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
-        setUser(session?.user ?? null);
+        applyUser(session?.user ?? null);
         setLoading(false);
       }
     );
@@ -31,7 +41,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      applyUser(session?.user ?? null);
       setLoading(false);
     });
 
