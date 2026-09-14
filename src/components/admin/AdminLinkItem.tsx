@@ -1,4 +1,4 @@
-import { GripVertical, Pencil, Trash2, Copy, BarChart3 } from "lucide-react";
+import { GripVertical, Pencil, Trash2, Copy, BarChart3, LayoutGrid } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useSortable } from "@dnd-kit/sortable";
@@ -50,13 +50,29 @@ export function AdminLinkItem({ link, onToggle, onEdit, onDelete, onDuplicate }:
 
       {/* Link Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          {link.icon && (
-            <span className="text-muted-foreground shrink-0">{renderIcon(link.icon, "w-5 h-5", link.iconVariant || undefined)}</span>
-          )}
-          <span className="font-medium truncate">{link.title}</span>
-        </div>
-        <p className="text-sm text-muted-foreground truncate">{link.url}</p>
+        {link.linkType === "cards" ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pro/15 text-pro">
+                <LayoutGrid className="h-3.5 w-3.5" />
+              </span>
+              <span className="font-medium truncate">{link.title}</span>
+            </div>
+            <p className="text-sm text-muted-foreground truncate">
+              {link.cardsData?.length || 0} card{link.cardsData?.length === 1 ? "" : "s"}
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              {link.icon && (
+                <span className="text-muted-foreground shrink-0">{renderIcon(link.icon, "w-5 h-5", link.iconVariant || undefined)}</span>
+              )}
+              <span className="font-medium truncate">{link.title}</span>
+            </div>
+            <p className="text-sm text-muted-foreground truncate">{link.url}</p>
+          </>
+        )}
       </div>
 
       {/* Stats Placeholder */}

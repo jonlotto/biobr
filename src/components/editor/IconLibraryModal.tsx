@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,20 @@ const VARIANT_TABS: { value: IconVariant; label: string }[] = [
   { value: "light", label: "Claro" },
 ];
 
+// Shown by default in the "Social" grid, before "Todos" is tapped - the
+// handful people actually look for, so the grid fits on a phone screen
+// without needing to scroll (see IconLibraryModal).
+const PRIMARY_SOCIAL_VALUES = [
+  "si-whatsapp",
+  "si-instagram",
+  "si-facebook",
+  "si-tiktok",
+  "si-youtube",
+  "si-x",
+  "si-telegram",
+  "linkedin-icon",
+];
+
 function matchesQuery(entry: LinkIconEntry, query: string) {
   if (!query) return true;
   const q = query.toLowerCase();
@@ -31,13 +45,17 @@ function IconGrid({
   entries,
   variant,
   onSelect,
+  trailingAction,
 }: {
   title: string;
   entries: LinkIconEntry[];
   variant: IconVariant;
   onSelect: (value: string) => void;
+  // An extra "+" tile appended after the icons - used by the Social grid to
+  // reveal the full list on demand instead of always rendering everything.
+  trailingAction?: { label: string; onClick: () => void };
 }) {
-  if (entries.length === 0) return null;
+  if (entries.length === 0 && !trailingAction) return null;
   // "light" variant icons render white, shown against a dark backdrop (see
   // the ScrollArea wrapper below) - labels need to flip to light text there
   // too, or they'd be unreadable against that same dark backdrop.
@@ -68,6 +86,24 @@ function IconGrid({
             </button>
           );
         })}
+        {trailingAction && (
+          <button
+            type="button"
+            onClick={trailingAction.onClick}
+            title={trailingAction.label}
+            className={cn(
+              "flex flex-col items-center gap-1 rounded-xl border-2 border-dashed p-2 transition-all",
+              onDarkBackdrop
+                ? "border-white/30 hover:border-white/50 hover:bg-white/10"
+                : "border-border hover:border-muted-foreground/40 hover:bg-muted/50",
+            )}
+          >
+            <Plus className={cn("h-6 w-6 shrink-0", onDarkBackdrop ? "text-white/70" : "text-muted-foreground")} />
+            <span className={cn("w-full truncate text-center text-[10px]", onDarkBackdrop ? "text-white/70" : "text-muted-foreground")}>
+              {trailingAction.label}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -80,15 +116,22 @@ function IconGrid({
 export function IconLibraryModal({ open, onClose, onSelect }: IconLibraryModalProps) {
   const [query, setQuery] = useState("");
   const [variant, setVariant] = useState<IconVariant>("brand");
+  const [showAllSocial, setShowAllSocial] = useState(false);
 
+  const isSearching = query.trim().length > 0;
   const filteredSocial = useMemo(() => SOCIAL_ICONS.filter((entry) => matchesQuery(entry, query)), [query]);
   const filteredGeneric = useMemo(() => GENERIC_ICONS.filter((entry) => matchesQuery(entry, query)), [query]);
+  // While searching, results always cover the full social list - the
+  // "primary only" curation is just the default resting state.
+  const displayedSocial =
+    isSearching || showAllSocial ? filteredSocial : filteredSocial.filter((entry) => PRIMARY_SOCIAL_VALUES.includes(entry.value));
   const hasResults = filteredSocial.length > 0 || filteredGeneric.length > 0;
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       setQuery("");
       setVariant("brand");
+      setShowAllSocial(false);
       onClose();
     }
   };
@@ -135,7 +178,17 @@ export function IconLibraryModal({ open, onClose, onSelect }: IconLibraryModalPr
           <div className={cn("space-y-6 px-5 py-4", variant === "dark" ? "bg-white" : variant === "light" ? "bg-neutral-900" : undefined)}>
             {hasResults ? (
               <>
-                <IconGrid title="Social" entries={filteredSocial} variant={variant} onSelect={handleSelect} />
+                <IconGrid
+                  title="Social"
+                  entries={displayedSocial}
+                  variant={variant}
+                  onSelect={handleSelect}
+                  trailingAction={
+                    !isSearching && !showAllSocial && displayedSocial.length < filteredSocial.length
+                      ? { label: "Todos", onClick: () => setShowAllSocial(true) }
+                      : undefined
+                  }
+                />
                 <IconGrid title="Genéricos" entries={filteredGeneric} variant={variant} onSelect={handleSelect} />
               </>
             ) : (

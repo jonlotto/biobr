@@ -1,15 +1,18 @@
 import { useEffect, useState, ComponentType, SVGProps } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useEditorState, EditorLink } from "@/hooks/useEditorState";
+import { useEditorState, EditorLink, CardItem } from "@/hooks/useEditorState";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { ProfileHeaderCard } from "@/components/admin/ProfileHeaderCard";
+import { OnboardingCards } from "@/components/admin/OnboardingCards";
 import { SocialIconsSection } from "@/components/admin/SocialIconsSection";
 import { AdminLinksList } from "@/components/admin/AdminLinksList";
 import { AdminRealtimePreview } from "@/components/admin/AdminRealtimePreview";
+import { AddLinkSheet, type AddLinkOptionId } from "@/components/admin/AddLinkSheet";
 import { DesignDrilldownView } from "@/components/design/DesignDrilldownView";
 import { EditorPreview } from "@/components/editor/EditorPreview";
 import { ButtonEditDrawer } from "@/components/editor/ButtonEditDrawer";
+import { CardsInfoEditor } from "@/components/editor/CardsInfoEditor";
 import { SocialAddModal } from "@/components/editor/SocialAddModal";
 import { SettingsSection } from "@/components/design/sections/SettingsSection";
 import { Button } from "@/components/ui/button";
@@ -87,6 +90,20 @@ export default function AdminLayout() {
   // stray "Novo Link" behind for autosave to persist. While true,
   // `selectedLinkId` stays null (there's no link yet to select).
   const [isCreatingLink, setIsCreatingLink] = useState(false);
+  // Preselects ButtonEditDrawer's "Tipo" radio when creating (set by which
+  // AddLinkSheet option was tapped) - irrelevant once editing an existing link.
+  const [creatingButtonType, setCreatingButtonType] = useState<"link" | "whatsapp">("link");
+  // Same "create vs edit" split as isCreatingLink above, but for the Cards
+  // informativos editor instead of ButtonEditDrawer.
+  const [isCreatingCards, setIsCreatingCards] = useState(false);
+  // The "Adicionar link ou bloco" bottom sheet - replaces the old direct-open
+  // of ButtonEditDrawer, letting the user pick Link / WhatsApp / Cards first.
+  const [showAddLinkSheet, setShowAddLinkSheet] = useState(false);
+  // Which Design sub-page to open straight into on the next switch to
+  // "design" - set when an onboarding card jumps there directly (e.g.
+  // "Personalize seu perfil" -> Header), cleared on every other navigation
+  // so a later, unrelated switch to Design doesn't inherit a stale jump.
+  const [designInitialCategory, setDesignInitialCategory] = useState<"header" | null>(null);
 
   // The design view has no autosave - warn before discarding unsaved edits.
   // Confirming actually reverts the local state too, otherwise it would sit
@@ -114,10 +131,11 @@ export default function AdminLayout() {
   }, [activeView, isDirty]);
 
   // Handle view change - update URL without full navigation
-  const handleViewChange = (view: AdminView) => {
+  const handleViewChange = (view: AdminView, designCategory?: "header") => {
     if (view === activeView) return;
     if (!confirmDiscardDesignChanges()) return;
     setActiveView(view);
+    setDesignInitialCategory(view === "design" ? designCategory ?? null : null);
     // Update URL without reload
     const paths = { links: "/admin", design: "/design", settings: "/settings" };
     window.history.replaceState(null, "", paths[view]);
@@ -144,14 +162,32 @@ export default function AdminLayout() {
     );
   }
 
-  // Links helpers
-  const buttons = links.filter((l) => l.linkType === "button");
+  // Links helpers - "button" and "cards" both live in the same reorderable
+  // list (only "social" gets its own section below), so a cards block can
+  // sit anywhere among the regular link buttons.
+  const buttons = links.filter((l) => l.linkType === "button" || l.linkType === "cards");
   const socials = links.filter((l) => l.linkType === "social");
   const selectedLink = links.find((l) => l.id === selectedLinkId);
 
-  const handleAddLink = () => {
+  // Onboarding checklist completion - derived live from profile/links data,
+  // not a dismissible flag, so it reflects deletions too (e.g. removing the
+  // only link brings card 1 back to pending).
+  const hasOnboardingLinks = links.length > 0;
+  const hasOnboardingProfileSetup = !!profile.avatarUrl?.trim() && !!profile.displayName?.trim();
+
+  const handleOpenAddSheet = () => {
+    setShowAddLinkSheet(true);
+  };
+
+  const handleSelectAddOption = (option: AddLinkOptionId) => {
+    setShowAddLinkSheet(false);
     setSelectedLinkId(null);
-    setIsCreatingLink(true);
+    if (option === "cards") {
+      setIsCreatingCards(true);
+    } else {
+      setCreatingButtonType(option);
+      setIsCreatingLink(true);
+    }
   };
 
   const handleSaveSocial = (username: string) => {
@@ -188,6 +224,7 @@ export default function AdminLayout() {
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-full",
+        cardsData: null,
       });
     }
     setShowAddSocial(false);
@@ -209,10 +246,34 @@ export default function AdminLayout() {
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-xl",
+        cardsData: null,
       });
       setIsCreatingLink(false);
     } else if (selectedLinkId) {
       updateLink(selectedLinkId, { ...data, thumbnailUrl: data.thumbnailUrl ?? null });
+      setSelectedLinkId(null);
+    }
+  };
+
+  const handleSaveCards = (cardsData: CardItem[]) => {
+    if (isCreatingCards) {
+      addLink({
+        title: "Cards informativos",
+        url: "",
+        icon: null,
+        iconVariant: null,
+        thumbnailUrl: null,
+        linkType: "cards",
+        style: "filled",
+        isActive: true,
+        buttonBgColor: null,
+        buttonTextColor: null,
+        buttonBorderRadius: "rounded-xl",
+        cardsData,
+      });
+      setIsCreatingCards(false);
+    } else if (selectedLinkId) {
+      updateLink(selectedLinkId, { cardsData });
       setSelectedLinkId(null);
     }
   };
@@ -269,14 +330,25 @@ export default function AdminLayout() {
                 saveNow();
               }}
               onUpdateHandle={(newHandle) => {
-                updateProfile({ handle: newHandle });
+                // Bidirectional sync with "Nome de exibição" (Header) - see
+                // the matching sync in HeaderSection.tsx's displayName input.
+                updateProfile({ handle: newHandle, displayName: newHandle });
                 saveNow();
               }}
             />
 
+            {/* Onboarding Checklist */}
+            <OnboardingCards
+              hasLinks={hasOnboardingLinks}
+              hasProfileSetup={hasOnboardingProfileSetup}
+              createdAt={profile.createdAt}
+              onAddLink={handleOpenAddSheet}
+              onPersonalizeProfile={() => handleViewChange("design", "header")}
+            />
+
             {/* Add Link Button */}
             <Button
-              onClick={handleAddLink}
+              onClick={handleOpenAddSheet}
               className="w-full rounded-xl h-14 text-lg font-medium mb-6 bg-primary hover:bg-primary/90"
             >
               <Plus className="h-5 w-5 mr-2" />
@@ -290,8 +362,12 @@ export default function AdminLayout() {
                 onReorder={reorderLinks}
                 onToggle={handleToggleLink}
                 onEdit={(id) => {
+                  // Which dialog actually opens is decided by selectedLink's
+                  // own linkType (ButtonEditDrawer vs CardsInfoEditor below) -
+                  // this just clears both "creating a new one" flags.
                   setSelectedLinkId(id);
                   setIsCreatingLink(false);
+                  setIsCreatingCards(false);
                 }}
                 onDelete={deleteLink}
                 onDuplicate={duplicateLink}
@@ -329,6 +405,7 @@ export default function AdminLayout() {
           isSaving={isSaving}
           isDirty={isDirty}
           onSave={save}
+          initialCategory={designInitialCategory ?? undefined}
         />
       ) : (
         <main 
@@ -352,15 +429,32 @@ export default function AdminLayout() {
       </div>
 
       {/* Button Edit Drawer - only for links view */}
+      <AddLinkSheet
+        open={showAddLinkSheet}
+        onClose={() => setShowAddLinkSheet(false)}
+        onSelect={handleSelectAddOption}
+      />
+
       <ButtonEditDrawer
-        open={isCreatingLink || !!selectedLinkId}
+        open={isCreatingLink || (!!selectedLinkId && selectedLink?.linkType !== "cards")}
         onClose={() => {
           setSelectedLinkId(null);
           setIsCreatingLink(false);
         }}
         onSave={handleSaveLink}
-        initialData={selectedLink || null}
+        initialData={selectedLink?.linkType !== "cards" ? selectedLink || null : null}
         isNew={isCreatingLink}
+        initialButtonType={creatingButtonType}
+      />
+
+      <CardsInfoEditor
+        open={isCreatingCards || (!!selectedLinkId && selectedLink?.linkType === "cards")}
+        onClose={() => {
+          setSelectedLinkId(null);
+          setIsCreatingCards(false);
+        }}
+        onSave={handleSaveCards}
+        initialCards={selectedLink?.linkType === "cards" ? selectedLink.cardsData : null}
       />
 
       {/* Social Add Modal */}

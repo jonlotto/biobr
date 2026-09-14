@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
 import { User, ChevronRight } from "lucide-react";
 import { templates } from "@/data/templates";
-import { EditorProfile, EditorLink } from "@/hooks/useEditorState";
+import { EditorProfile, EditorLink, CardItem } from "@/hooks/useEditorState";
+import { CardsCarousel } from "@/components/CardsCarousel";
 import { getProfileBackgroundStyle, hasCustomProfileBackground } from "@/lib/templateBackground";
 import { resolveHeaderLayout } from "@/lib/headerLayouts";
 import { resolveButtonLayout } from "@/lib/buttonLayouts";
@@ -40,7 +41,9 @@ interface BioPreviewContentProps {
 export function BioPreviewContent({ profile, links, interactive = true, onClickElement }: BioPreviewContentProps) {
   const template = templates.find((t) => t.slug === profile.templateSlug) || templates[0];
   const activeLinks = links.filter((l) => l.isActive).sort((a, b) => a.order - b.order);
-  const buttons = activeLinks.filter((l) => l.linkType === "button");
+  // "button" and "cards" both render inline among the link buttons (only
+  // "social" gets its own row of icons below) - see displayButtons/CardsCarousel.
+  const buttons = activeLinks.filter((l) => l.linkType === "button" || l.linkType === "cards");
   const socials = activeLinks.filter((l) => l.linkType === "social");
 
   // Shared button styling - used for real buttons and, when there are none yet, the example buttons below.
@@ -164,7 +167,17 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
   // Normalizes real links and the no-links-yet placeholders into one shape
   // so every layout below maps over a single list instead of duplicating
   // near-identical JSX for the "real" vs "example" cases.
-  const displayButtons: { key: string; title: string; icon?: string; iconVariant?: IconVariant; thumbnailUrl?: string | null; linkId?: string; isExample?: boolean }[] =
+  const displayButtons: {
+    key: string;
+    title: string;
+    icon?: string;
+    iconVariant?: IconVariant;
+    thumbnailUrl?: string | null;
+    linkId?: string;
+    isExample?: boolean;
+    isCards?: boolean;
+    cardsData?: CardItem[] | null;
+  }[] =
     buttons.length > 0
       ? buttons.map((link) => ({
           key: link.id,
@@ -173,6 +186,8 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
           iconVariant: link.iconVariant || undefined,
           thumbnailUrl: link.thumbnailUrl,
           linkId: link.id,
+          isCards: link.linkType === "cards",
+          cardsData: link.cardsData,
         }))
       : EXAMPLE_BUTTONS.map((example, i) => ({ key: `example-${i}`, title: example.label, icon: example.icon, isExample: true }));
 
@@ -207,6 +222,9 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     return (
       <div className="space-y-3 mb-6">
         {displayButtons.map((item) => {
+          if (item.isCards) {
+            return <CardsCarousel key={item.key} cards={item.cardsData || []} />;
+          }
           const hasMedia = !!(item.thumbnailUrl || item.icon);
           return (
             <button
@@ -240,6 +258,9 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
   const renderOverlapAlternateList = () => (
     <div className="space-y-4 mb-6">
       {displayButtons.map((item, i) => {
+        if (item.isCards) {
+          return <CardsCarousel key={item.key} cards={item.cardsData || []} />;
+        }
         const hasMedia = !!(item.thumbnailUrl || item.icon);
         const sideLeft = i % 2 === 0;
         return (
@@ -278,6 +299,9 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     // contrast ring that separates the icon from the button underneath it.
     <div className="space-y-4 mb-6">
       {displayButtons.map((item, i) => {
+        if (item.isCards) {
+          return <CardsCarousel key={item.key} cards={item.cardsData || []} />;
+        }
         const hasMedia = !!(item.thumbnailUrl || item.icon);
         const sideLeft = i % 2 === 0;
         return (
@@ -322,6 +346,9 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
   const renderUnifiedCardList = () => (
     <div className={cn("mb-6 overflow-hidden rounded-2xl shadow-sm", template.styles.cardBg)}>
       {displayButtons.map((item, i) => {
+        if (item.isCards) {
+          return <CardsCarousel key={item.key} cards={item.cardsData || []} className="p-3" />;
+        }
         const hasMedia = !!(item.thumbnailUrl || item.icon);
         const isLast = i === displayButtons.length - 1;
         return (
@@ -366,6 +393,9 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
   const renderBannerList = () => (
     <div className="space-y-4 mb-6">
       {displayButtons.map((item) => {
+        if (item.isCards) {
+          return <CardsCarousel key={item.key} cards={item.cardsData || []} />;
+        }
         const hasImage = !!item.thumbnailUrl;
         // No image: the card's own fill color decides the pill's contrast
         // scheme. With an image, the photo's content is unknown ahead of

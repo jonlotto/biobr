@@ -53,6 +53,7 @@ export function ButtonsTab({
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-xl",
+        cardsData: null,
       });
     }
     setIsDrawerOpen(false);

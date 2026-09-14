@@ -1,4 +1,17 @@
 import type { ComponentType, CSSProperties } from "react";
+import {
+  IconShoppingBag,
+  IconTruck,
+  IconBriefcase,
+  IconCreditCard,
+  IconTag,
+  IconPackage,
+  IconStar as IconStarOutline,
+  IconGift,
+  IconLock,
+  IconMapPin,
+  IconClock,
+} from "@tabler/icons-react";
 import { LinkIcon } from "@/components/icons/LinkIcon";
 import { CartIcon } from "@/components/icons/CartIcon";
 import { StoreIcon } from "@/components/icons/StoreIcon";
@@ -87,6 +100,20 @@ export const GENERIC_ICONS: LinkIconEntry[] = [
   { value: "star-icon", label: "Estrela", Icon: withVariant(StarIcon) },
   { value: "location-icon", label: "Localização", Icon: withVariant(LocationIcon), keywords: ["mapa", "endereço"] },
   { value: "email-icon", label: "Email", Icon: withVariant(EmailIcon), keywords: ["e-mail", "mail"] },
+  // Tabler icons (outline, stroke="currentColor") - render with whatever
+  // color the surrounding UI sets, same as the hand-drawn generics above
+  // (including a card's own cor_texto), via the same withVariant wrapper.
+  { value: "ti-shopping-bag", label: "Sacola", Icon: withVariant(IconShoppingBag), keywords: ["loja", "compra", "shop"] },
+  { value: "ti-truck", label: "Caminhão", Icon: withVariant(IconTruck), keywords: ["frete", "entrega"] },
+  { value: "ti-briefcase", label: "Maleta", Icon: withVariant(IconBriefcase), keywords: ["trabalho", "negócio"] },
+  { value: "ti-credit-card", label: "Cartão", Icon: withVariant(IconCreditCard), keywords: ["pagamento", "cartão"] },
+  { value: "ti-tag", label: "Etiqueta", Icon: withVariant(IconTag), keywords: ["preço", "desconto", "promoção"] },
+  { value: "ti-package", label: "Pacote", Icon: withVariant(IconPackage), keywords: ["encomenda", "entrega"] },
+  { value: "ti-star", label: "Estrela (contorno)", Icon: withVariant(IconStarOutline) },
+  { value: "ti-gift", label: "Presente", Icon: withVariant(IconGift), keywords: ["brinde"] },
+  { value: "ti-lock", label: "Cadeado", Icon: withVariant(IconLock), keywords: ["segurança", "privado"] },
+  { value: "ti-map-pin", label: "Localização (pin)", Icon: withVariant(IconMapPin), keywords: ["mapa", "endereço"] },
+  { value: "ti-clock", label: "Relógio", Icon: withVariant(IconClock), keywords: ["horário", "tempo"] },
 ];
 
 // Minimal shape of a simple-icons entry, so `brandIcon` also accepts the

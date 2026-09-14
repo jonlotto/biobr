@@ -6,6 +6,21 @@ import type { HeaderLayout } from "@/lib/headerLayouts";
 import type { ButtonLayout } from "@/lib/buttonLayouts";
 import type { IconVariant } from "@/lib/linkIcons";
 
+// One slide inside a "cards informativos" block - purely informational, not
+// individually clickable (see CardsCarousel). subtitle is optional; cards
+// saved before this split only have the old `text` field (see
+// getCardTitle/normalizeCard).
+export interface CardItem {
+  id: string;
+  icon: string;
+  title: string;
+  subtitle: string | null;
+  bgColor: string | null;
+  // Icon/title/subtitle color. null means "auto" - CardsCarousel picks
+  // black or white for contrast against bgColor.
+  textColor: string | null;
+}
+
 export interface EditorLink {
   id: string;
   title: string;
@@ -16,7 +31,11 @@ export interface EditorLink {
   // existed (falls back to "brand" at render time).
   iconVariant: IconVariant | null;
   thumbnailUrl: string | null;
-  linkType: "button" | "social";
+  // "cards" is a self-contained carousel of info tiles (see CardItem/
+  // CardsCarousel) instead of a single clickable url - title/url are still
+  // set (fixed placeholder values) so the row satisfies the same NOT NULL
+  // columns every other link uses.
+  linkType: "button" | "social" | "cards";
   style: "filled" | "outline";
   isActive: boolean;
   order: number;
@@ -24,6 +43,8 @@ export interface EditorLink {
   buttonBgColor: string | null;
   buttonTextColor: string | null;
   buttonBorderRadius: string;
+  // Only set (non-null) when linkType is "cards".
+  cardsData: CardItem[] | null;
 }
 
 export interface EditorProfile {
@@ -64,6 +85,9 @@ export interface EditorProfile {
   // Verified badge next to the display name - free for any shop owner to
   // enable for now, no plan restriction. Defaults to false.
   showVerifiedBadge: boolean;
+  // Read-only - when the profile row was created. Null until loaded from
+  // Supabase (see OnboardingCards, which gates itself on this).
+  createdAt: string | null;
 }
 
 export interface EditorState {
@@ -119,6 +143,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
       titleColor: null,
       titleSize: "large",
       showVerifiedBadge: false,
+      createdAt: null,
     },
     links: [],
     isDirty: false,
@@ -194,6 +219,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           titleColor: (profile as any)?.title_color || null,
           titleSize: ((profile as any)?.title_size as "small" | "large") || "large",
           showVerifiedBadge: (profile as any)?.show_verified_badge ?? false,
+          createdAt: profile?.created_at || null,
         };
         const loadedLinks: EditorLink[] = (links || []).map((link) => ({
           id: link.id,
@@ -202,13 +228,14 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           icon: link.icon,
           iconVariant: ((link as any).icon_variant as IconVariant | null) || null,
           thumbnailUrl: (link as any).thumbnail_url || null,
-          linkType: (link.link_type as "button" | "social") || "button",
+          linkType: (link.link_type as "button" | "social" | "cards") || "button",
           style: (link.style as "filled" | "outline") || "filled",
           isActive: link.is_active,
           order: link.position,
           buttonBgColor: link.button_bg_color || null,
           buttonTextColor: link.button_text_color || null,
           buttonBorderRadius: link.button_border_radius || "rounded-xl",
+          cardsData: ((link as any).cards_data as CardItem[] | null) || null,
         }));
 
         // A changed template from the URL counts as a pending edit, so don't
@@ -315,6 +342,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           button_bg_color: link.buttonBgColor,
           button_text_color: link.buttonTextColor,
           button_border_radius: link.buttonBorderRadius,
+          cards_data: link.cardsData,
         };
 
         if (link.id.startsWith("temp-")) {

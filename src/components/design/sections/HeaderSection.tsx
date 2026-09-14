@@ -272,7 +272,9 @@ export function HeaderSection({ profile, onUpdate }: HeaderSectionProps) {
         <Input
           id="displayName"
           value={profile.displayName}
-          onChange={(e) => onUpdate({ displayName: e.target.value })}
+          // Bidirectional sync with the @handle edited in "Seus Links" - see
+          // the matching sync in AdminLayout.tsx's onUpdateHandle.
+          onChange={(e) => onUpdate({ displayName: e.target.value, handle: e.target.value })}
           placeholder="Seu nome"
         />
       </div>

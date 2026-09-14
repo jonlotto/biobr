@@ -55,6 +55,7 @@ export function SocialsTab({
       buttonBgColor: null,
       buttonTextColor: null,
       buttonBorderRadius: "rounded-xl",
+      cardsData: null,
     });
 
     setSelectedPlatform(null);

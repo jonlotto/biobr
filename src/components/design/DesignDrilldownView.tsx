@@ -14,6 +14,8 @@ import { TextSection } from "@/components/design/sections/TextSection";
 import { ButtonsSection } from "@/components/design/sections/ButtonsSection";
 import { ColorsSection } from "@/components/design/sections/ColorsSection";
 
+type CategoryId = "theme" | "header" | "buttons" | "text" | "colors";
+
 interface DesignDrilldownViewProps {
   profile: EditorProfile;
   links: EditorLink[];
@@ -21,9 +23,9 @@ interface DesignDrilldownViewProps {
   isSaving: boolean;
   isDirty: boolean;
   onSave: () => void;
+  /** Opens straight into this category's sub-page instead of the list - e.g. jumping here from an onboarding card. */
+  initialCategory?: CategoryId;
 }
-
-type CategoryId = "theme" | "header" | "buttons" | "text" | "colors";
 
 function CategoryRow({ label, value, thumbnail, onClick }: { label: string; value?: string; thumbnail: ReactNode; onClick: () => void }) {
   return (
@@ -44,8 +46,8 @@ function CategoryRow({ label, value, thumbnail, onClick }: { label: string; valu
 // sub-pages for each option group. Used verbatim on both mobile and desktop
 // (this used to be a mobile-only view; the desktop sidebar + all-sections-
 // stacked layout it replaced is gone).
-export function DesignDrilldownView({ profile, links, onUpdate, isSaving, isDirty, onSave }: DesignDrilldownViewProps) {
-  const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
+export function DesignDrilldownView({ profile, links, onUpdate, isSaving, isDirty, onSave, initialCategory }: DesignDrilldownViewProps) {
+  const [activeCategory, setActiveCategory] = useState<CategoryId | null>(initialCategory ?? null);
 
   const template = templates.find((t) => t.slug === profile.templateSlug) || templates[0];
   // Style/shape are fixed - see the same comment in BioPreviewContent.tsx.

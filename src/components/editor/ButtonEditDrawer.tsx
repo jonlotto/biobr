@@ -37,6 +37,8 @@ interface ButtonEditDrawerProps {
    * this dialog saves (e.g. ButtonsTab).
    */
   isNew?: boolean;
+  /** Preselects the "Tipo" radio for a brand-new button (e.g. opened from the "WhatsApp" option in AddLinkSheet). Ignored when editing an existing link - its own url already determines the type. */
+  initialButtonType?: "link" | "whatsapp";
 }
 
 export function ButtonEditDrawer({
@@ -45,6 +47,7 @@ export function ButtonEditDrawer({
   onSave,
   initialData,
   isNew,
+  initialButtonType,
 }: ButtonEditDrawerProps) {
   const isCreating = isNew ?? !initialData;
   const { user } = useAuth();
@@ -122,13 +125,15 @@ export function ButtonEditDrawer({
     } else {
       setTitle("");
       setUrl("");
-      setIcon("");
       setIconVariant("brand");
       setThumbnailUrl(null);
-      setButtonType("link");
+      setButtonType(initialButtonType ?? "link");
       setWhatsappNumber("");
       setWhatsappMessage("");
       setMediaTab("icon");
+      // Preselecting WhatsApp should also default its icon, same as manually
+      // switching the "Tipo" radio does (see the RadioGroup's onValueChange).
+      setIcon(initialButtonType === "whatsapp" ? WHATSAPP_DEFAULT_ICON_VALUE : "");
     }
     setErrors({});
   }, [initialData, open]);

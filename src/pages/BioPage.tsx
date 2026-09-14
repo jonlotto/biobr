@@ -13,6 +13,8 @@ import { resolveHeaderLayout } from "@/lib/headerLayouts";
 import { resolveButtonLayout } from "@/lib/buttonLayouts";
 import { hexToRgba } from "@/lib/color";
 import { VerifiedBadge } from "@/components/icons/VerifiedBadge";
+import { CardsCarousel } from "@/components/CardsCarousel";
+import type { CardItem } from "@/hooks/useEditorState";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Profile = Tables<"profiles">;
@@ -164,6 +166,11 @@ const BioPage = () => {
   const buttons = links.filter(l => l.link_type !== "social");
   const socials = links.filter(l => l.link_type === "social");
 
+  // "cards" rows render as a carousel instead of the button layout's own
+  // markup - checked at the top of every renderXxxLinks map below, in place
+  // of whatever that layout would otherwise draw for a regular link.
+  const getCardsData = (link: LinkType) => ((link as any).cards_data as CardItem[] | null) || [];
+
   const resolvedButtonLayout = resolveButtonLayout((profile as any)?.button_layout ?? null);
   const linkBgColor = profile?.global_button_bg_color || template.styles.primaryColor;
   const linkBgOpacity = (profile as any)?.global_button_bg_opacity ?? 100;
@@ -239,6 +246,9 @@ const BioPage = () => {
     return (
     <div className="space-y-4">
       {buttons.map((link, index) => {
+        if (link.link_type === "cards") {
+          return <CardsCarousel key={link.id} cards={getCardsData(link)} />;
+        }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasMedia = !!(thumbnailUrl || link.icon);
         return (
@@ -274,6 +284,9 @@ const BioPage = () => {
   const renderOverlapAlternateLinks = () => (
     <div className="space-y-5">
       {buttons.map((link, index) => {
+        if (link.link_type === "cards") {
+          return <CardsCarousel key={link.id} cards={getCardsData(link)} />;
+        }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasMedia = !!(thumbnailUrl || link.icon);
         const sideLeft = index % 2 === 0;
@@ -316,6 +329,9 @@ const BioPage = () => {
     // contrast ring that separates the icon from the button underneath it.
     <div className="space-y-4">
       {buttons.map((link, index) => {
+        if (link.link_type === "cards") {
+          return <CardsCarousel key={link.id} cards={getCardsData(link)} />;
+        }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasMedia = !!(thumbnailUrl || link.icon);
         const sideLeft = index % 2 === 0;
@@ -353,6 +369,9 @@ const BioPage = () => {
   const renderUnifiedCardLinks = () => (
     <div className={cn("overflow-hidden rounded-2xl shadow-sm", template.styles.cardBg)}>
       {buttons.map((link, index) => {
+        if (link.link_type === "cards") {
+          return <CardsCarousel key={link.id} cards={getCardsData(link)} className="p-3" />;
+        }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasMedia = !!(thumbnailUrl || link.icon);
         const isLast = index === buttons.length - 1;
@@ -384,6 +403,9 @@ const BioPage = () => {
   const renderBannerLinks = () => (
     <div className="space-y-4">
       {buttons.map((link, index) => {
+        if (link.link_type === "cards") {
+          return <CardsCarousel key={link.id} cards={getCardsData(link)} />;
+        }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasImage = !!thumbnailUrl;
         // No image: the card's own fill color decides the pill's contrast

@@ -84,6 +84,7 @@ describe("useEditorState - add link race with autosave", () => {
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-xl",
+        cardsData: null,
       });
       result.current.setSelectedLinkId(newId);
     });

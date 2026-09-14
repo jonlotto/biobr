@@ -36,6 +36,14 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
+    /* Success - onboarding checklist completion state */
+    --success: 142 71% 40%;
+    --success-foreground: 0 0% 100%;
+
+    /* Pro - the "Cards informativos" add-link option accent */
+    --pro: 262 83% 58%;
+    --pro-foreground: 0 0% 100%;
+
     --border: 0 0% 88%;
     --input: 0 0% 88%;
     --ring: 225 99% 42%;
@@ -88,6 +96,12 @@
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
+
+    --success: 142 60% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --pro: 262 75% 65%;
+    --pro-foreground: 0 0% 100%;
 
     --border: 0 0% 20%;
     --input: 0 0% 20%;

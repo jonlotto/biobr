@@ -93,6 +93,7 @@ const Admin = () => {
       buttonBgColor: null,
       buttonTextColor: null,
       buttonBorderRadius: "rounded-xl",
+      cardsData: null,
     });
     setSelectedLinkId(newId);
   };
@@ -125,6 +126,7 @@ const Admin = () => {
       buttonBgColor: null,
       buttonTextColor: null,
       buttonBorderRadius: "rounded-full",
+      cardsData: null,
     });
     setShowAddSocial(false);
     setSelectedPlatform(null);
