@@ -185,18 +185,6 @@ const BioPage = () => {
   const linkBorderRadius = "rounded-full";
   const linkFontFamily = (profile as any)?.title_font || "Inter";
 
-  // Perceived luminance of a solid hex fill - used only by the "banner"
-  // layout to decide whether its title pill should be light-on-dark or
-  // dark-on-light, since that card's own background is the button's actual
-  // fill color, always a real hex here (custom color or the theme's own).
-  const isLightHex = (hex: string): boolean => {
-    const clean = hex.replace("#", "");
-    if (clean.length !== 6) return false;
-    const r = parseInt(clean.slice(0, 2), 16);
-    const g = parseInt(clean.slice(2, 4), 16);
-    const b = parseInt(clean.slice(4, 6), 16);
-    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6;
-  };
 
   const linkFillStyle: React.CSSProperties = {
     backgroundColor: hexToRgba(linkBgColor, linkBgOpacity),
@@ -408,10 +396,6 @@ const BioPage = () => {
         }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasImage = !!thumbnailUrl;
-        // No image: the card's own fill color decides the pill's contrast
-        // scheme. With an image, the photo's content is unknown ahead of
-        // time, so the pill always defaults to the safer light-on-dark form.
-        const pillIsLight = hasImage || !isLightHex(linkBgColor);
         return (
           <a
             key={link.id}
@@ -434,12 +418,15 @@ const BioPage = () => {
               )
             )}
 
+            {/* Gradient strip instead of a pill - readable over any image/color
+                without needing a solid backing behind the text. */}
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%]"
+              style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)" }}
+            />
             <span
-              className={cn(
-                "absolute bottom-2.5 left-2.5 max-w-[calc(100%-20px)] truncate rounded-full px-3 py-1.5 text-sm font-medium backdrop-blur-sm",
-                pillIsLight ? "bg-white/85 text-neutral-900" : "bg-black/70 text-white",
-              )}
-              style={{ fontFamily: linkFontFamily }}
+              className="absolute inset-x-0 bottom-0 truncate text-left text-sm font-medium text-white"
+              style={{ fontFamily: linkFontFamily, padding: "10px 14px" }}
             >
               {link.title}
             </span>
