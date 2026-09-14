@@ -1,9 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { GENERIC_ICONS, SOCIAL_ICONS, type IconVariant, type LinkIconEntry } from "@/lib/linkIcons";
@@ -144,11 +142,8 @@ export function IconLibraryModal({ open, onClose, onSelect }: IconLibraryModalPr
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[85vh] flex-col gap-0 p-0 sm:max-w-lg">
-        <DialogHeader className="flex-row items-center justify-between space-y-0 border-b border-border px-5 py-4 pr-10">
+        <DialogHeader className="flex-row items-center space-y-0 border-b border-border px-5 py-4 pr-10">
           <DialogTitle>Biblioteca de Ícones</DialogTitle>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Cancelar
-          </Button>
         </DialogHeader>
 
         <div className="border-b border-border px-5 py-3 space-y-3">
@@ -174,8 +169,20 @@ export function IconLibraryModal({ open, onClose, onSelect }: IconLibraryModalPr
           </div>
         </div>
 
-        <ScrollArea className="min-h-0 flex-1">
-          <div className={cn("space-y-6 px-5 py-4", variant === "dark" ? "bg-white" : variant === "light" ? "bg-neutral-900" : undefined)}>
+        {/* Plain scrolling div, not Radix's ScrollArea: nested in this flex
+            column, ScrollArea's inner Viewport (height:100%) doesn't resolve
+            against the flex-computed height of its own Root and grows to fit
+            all the content instead - so it never overflows itself and the
+            list just gets silently clipped by Root's overflow-hidden, with
+            no scrollbar. A native overflow-y-auto here doesn't have that
+            failure mode. */}
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto px-5 py-4",
+            variant === "dark" ? "bg-white" : variant === "light" ? "bg-neutral-900" : undefined,
+          )}
+        >
+          <div className="space-y-6">
             {hasResults ? (
               <>
                 <IconGrid
@@ -197,7 +204,7 @@ export function IconLibraryModal({ open, onClose, onSelect }: IconLibraryModalPr
               </p>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
