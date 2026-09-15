@@ -71,12 +71,9 @@ export const Sidebar = ({
 };
 
 export const SidebarBody = (props: React.ComponentProps<typeof motion.div>) => {
-  return (
-    <>
-      <DesktopSidebar {...props} />
-      <MobileSidebar {...(props as React.ComponentProps<"div">)} />
-    </>
-  );
+  // Desktop only - mobile navigation is MobileBottomNav's job now, so there's
+  // no mobile counterpart here anymore (see the removed MobileSidebar).
+  return <DesktopSidebar {...props} />;
 };
 
 export const DesktopSidebar = ({
@@ -100,26 +97,6 @@ export const DesktopSidebar = ({
     >
       {children}
     </motion.div>
-  );
-};
-
-// Mobile top bar: just the logo. The fullscreen hamburger panel this used to
-// open is gone - MobileBottomNav now owns mobile navigation, including the
-// QR Code / "Ver minha página" / "Sair" actions that used to live here.
-export const MobileSidebar = ({
-  className,
-  children: _children,
-  ...props
-}: React.ComponentProps<"div">) => {
-  return (
-    <div
-      className={cn(
-        "min-h-14 px-4 pt-[env(safe-area-inset-top)] flex flex-row md:hidden items-center justify-between bg-black w-full"
-      )}
-      {...props}
-    >
-      <Logo />
-    </div>
   );
 };
 

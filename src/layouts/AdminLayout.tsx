@@ -318,8 +318,8 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] bg-background overflow-hidden">
-      {/* Collapsible animated sidebar (desktop: hover to expand; mobile: just the top logo bar - navigation on mobile is handled by MobileBottomNav below) */}
+    <div className="flex flex-col md:flex-row h-[100dvh] bg-background overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0">
+      {/* Collapsible animated sidebar - desktop only now (hover to expand); mobile navigation is handled entirely by MobileBottomNav below, there's no mobile top bar anymore */}
       <AdminSidebar
         activeSection={activeView}
         username={profile.username}
