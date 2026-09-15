@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GripVertical, Trash2, Copy, Pencil, Eye, EyeOff, LayoutGrid } from "lucide-react";
+import { GripVertical, Trash2, Copy, Pencil, LayoutGrid } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { EditorLink } from "@/hooks/useEditorState";
 import { cn } from "@/lib/utils";
+import { renderIcon } from "@/components/LinkCard";
 import { getLinkIconComponent, WHATSAPP_DEFAULT_ICON_VALUE } from "@/lib/linkIcons";
 import { DEFAULT_WHATSAPP_COUNTRY_CODE, WHATSAPP_COUNTRY_CODES, buildWhatsappUrl, maskWhatsappPhone } from "@/lib/whatsapp";
 import { LinkMediaPicker } from "./LinkMediaPicker";
@@ -16,6 +17,10 @@ interface AdminLinkItemProps {
   link: EditorLink;
   /** Briefly true right after this link is clicked in the live preview panel - scrolls into view and rings the card. */
   highlighted?: boolean;
+  /** Whether this "button" card is showing its full edit fields below the summary row - only one card in the list is expanded at a time (see AdminLayout's expandedId). Ignored for "cards" blocks, which always open CardsInfoEditor instead. */
+  expanded?: boolean;
+  /** Toggles `expanded` for this card - wired to its pencil icon. */
+  onToggleExpand: (id: string) => void;
   onToggle: (id: string, isActive: boolean) => void;
   /** Applies an inline field edit - "cards" blocks don't use this (see onEditCards). */
   onUpdate: (id: string, updates: Partial<EditorLink>) => void;
@@ -32,7 +37,7 @@ const TYPE_OPTIONS: { value: "link" | "whatsapp"; label: string; iconValue: stri
   { value: "whatsapp", label: "WhatsApp", iconValue: WHATSAPP_DEFAULT_ICON_VALUE },
 ];
 
-export function AdminLinkItem({ link, highlighted, onToggle, onUpdate, onSaveNow, onEditCards, onDelete, onDuplicate }: AdminLinkItemProps) {
+export function AdminLinkItem({ link, highlighted, expanded, onToggleExpand, onToggle, onUpdate, onSaveNow, onEditCards, onDelete, onDuplicate }: AdminLinkItemProps) {
   const {
     attributes,
     listeners,
@@ -155,169 +160,198 @@ export function AdminLinkItem({ link, highlighted, onToggle, onUpdate, onSaveNow
 
   const CurrentTypeIcon = getLinkIconComponent(isWhatsapp ? WHATSAPP_DEFAULT_ICON_VALUE : "link-icon");
 
+  // Collapsed-row subtitle: the WhatsApp number (formatted, with its country
+  // code) or the plain url - whichever field this card is actually pointed
+  // at right now.
+  const collapsedSubtitle = isWhatsapp
+    ? link.whatsappPhone
+      ? `+${countryCode} ${maskWhatsappPhone(link.whatsappPhone)}`
+      : "Sem número"
+    : link.url || "Sem URL";
+
   return (
     <div
       ref={setRefs}
       style={sortableStyle}
       className={cn(
-        "flex items-start gap-2 rounded-xl border border-dashed border-border bg-card p-3",
+        "rounded-xl border border-dashed border-border bg-card p-3 group",
         isDragging && "opacity-50 shadow-lg",
         highlighted && "ring-2 ring-primary",
       )}
     >
-      {/* Drag Handle */}
-      <button
-        {...attributes}
-        {...listeners}
-        className="-m-2 mt-1 shrink-0 cursor-grab self-start p-2 text-muted-foreground transition-colors active:cursor-grabbing hover:text-foreground"
-      >
-        <GripVertical className="h-5 w-5" />
-      </button>
+      {/* Summary row - always visible; the fields below only show up while expanded */}
+      <div className="flex items-center gap-3">
+        <button
+          {...attributes}
+          {...listeners}
+          className="-m-2 shrink-0 cursor-grab p-2 text-muted-foreground transition-colors active:cursor-grabbing hover:text-foreground"
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
 
-      {/* Fields */}
-      <div className="min-w-0 flex-1 space-y-2">
-        <Input
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            onUpdate(link.id, { title: e.target.value });
-          }}
-          onBlur={onSaveNow}
-          placeholder="Nome fácil"
-          className="h-9 text-sm font-medium"
-        />
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+          {link.thumbnailUrl ? (
+            <img src={link.thumbnailUrl} alt="" className="h-full w-full object-cover" />
+          ) : link.icon ? (
+            renderIcon(link.icon, "h-4 w-4", link.iconVariant || undefined)
+          ) : null}
+        </span>
 
-        {isWhatsapp ? (
-          <div className="flex gap-2">
-            <Select
-              value={countryCode}
-              onValueChange={(code) => {
-                onUpdate(link.id, { whatsappCountryCode: code, url: buildWhatsappUrl(code, phoneDraft, messageDraft) });
-                onSaveNow();
-              }}
-            >
-              <SelectTrigger className="h-9 w-[92px] shrink-0 px-2 text-sm">
-                <SelectValue />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{link.title || "Sem nome"}</p>
+          <p className="truncate text-xs text-muted-foreground">{collapsedSubtitle}</p>
+        </div>
+
+        <Switch checked={link.isActive} onCheckedChange={(checked) => onToggle(link.id, checked)} />
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-8 w-8 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100",
+            expanded && "text-primary opacity-100",
+          )}
+          onClick={() => onToggleExpand(link.id)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100" onClick={() => onDuplicate(link.id)}>
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 text-destructive hover:text-destructive"
+          onClick={() => onDelete(link.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Edit fields - only rendered while expanded */}
+      {expanded && (
+        <div className="mt-3 space-y-2 border-t border-dashed border-border pt-3">
+          <Input
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              onUpdate(link.id, { title: e.target.value });
+            }}
+            onBlur={onSaveNow}
+            placeholder="Nome fácil"
+            className="h-9 text-sm font-medium"
+          />
+
+          {isWhatsapp ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Select
+                  value={countryCode}
+                  onValueChange={(code) => {
+                    onUpdate(link.id, { whatsappCountryCode: code, url: buildWhatsappUrl(code, phoneDraft, messageDraft) });
+                    onSaveNow();
+                  }}
+                >
+                  <SelectTrigger className="h-9 w-[92px] shrink-0 px-2 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WHATSAPP_COUNTRY_CODES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.flag} +{c.code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  type="tel"
+                  value={maskWhatsappPhone(phoneDraft)}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
+                    setPhoneDraft(digits);
+                    onUpdate(link.id, { whatsappPhone: digits, url: buildWhatsappUrl(countryCode, digits, messageDraft) });
+                  }}
+                  onBlur={onSaveNow}
+                  placeholder="(11) 99999-9999"
+                  className="h-9 min-w-0 flex-1 text-sm"
+                />
+              </div>
+
+              <Input
+                value={messageDraft}
+                onChange={(e) => {
+                  setMessageDraft(e.target.value);
+                  onUpdate(link.id, { whatsappMessage: e.target.value, url: buildWhatsappUrl(countryCode, phoneDraft, e.target.value) });
+                }}
+                onBlur={onSaveNow}
+                placeholder="Olá! Vi sua bio..."
+                className="h-9 text-sm"
+              />
+            </div>
+          ) : (
+            <div>
+              <Input
+                value={urlDraft}
+                onChange={(e) => {
+                  setUrlDraft(e.target.value);
+                  onUpdate(link.id, { url: e.target.value });
+                }}
+                onBlur={() => {
+                  const trimmed = urlDraft.trim();
+                  // Bare domains ("seu-site.com/pagina") are valid input here -
+                  // normalize to a real https:// link on blur so the public
+                  // page's plain `href={link.url}` still works.
+                  if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+                    const normalized = `https://${trimmed}`;
+                    setUrlDraft(normalized);
+                    onUpdate(link.id, { url: normalized });
+                  }
+                  onSaveNow();
+                }}
+                placeholder="seu-site.com/pagina"
+                className={cn("h-9 text-sm", urlInvalid && "border-destructive focus-visible:ring-destructive")}
+              />
+              {urlInvalid && <p className="mt-1 text-xs text-destructive">Adicione uma URL</p>}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            <Select value={link.buttonKind} onValueChange={(v) => handleKindChange(v as "link" | "whatsapp")}>
+              <SelectTrigger className="h-9 w-auto min-w-[128px] gap-2 text-sm">
+                <SelectValue>
+                  <span className="flex items-center gap-2">
+                    {CurrentTypeIcon && <CurrentTypeIcon className="h-4 w-4" variant="brand" />}
+                    {isWhatsapp ? "WhatsApp" : "Link"}
+                  </span>
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {WHATSAPP_COUNTRY_CODES.map((c) => (
-                  <SelectItem key={c.code} value={c.code}>
-                    {c.flag} +{c.code}
-                  </SelectItem>
-                ))}
+                {TYPE_OPTIONS.map((opt) => {
+                  const OptIcon = getLinkIconComponent(opt.iconValue);
+                  return (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <span className="flex items-center gap-2">
+                        {OptIcon && <OptIcon className="h-4 w-4" variant="brand" />}
+                        {opt.label}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
 
-            <Input
-              type="tel"
-              value={maskWhatsappPhone(phoneDraft)}
-              onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "").slice(0, 11);
-                setPhoneDraft(digits);
-                onUpdate(link.id, { whatsappPhone: digits, url: buildWhatsappUrl(countryCode, digits, messageDraft) });
-              }}
-              onBlur={onSaveNow}
-              placeholder="(11) 99999-9999"
-              className="h-9 min-w-0 flex-1 text-sm"
-            />
-
-            <Input
-              value={messageDraft}
-              onChange={(e) => {
-                setMessageDraft(e.target.value);
-                onUpdate(link.id, { whatsappMessage: e.target.value, url: buildWhatsappUrl(countryCode, phoneDraft, e.target.value) });
-              }}
-              onBlur={onSaveNow}
-              placeholder="Olá! Vi sua bio..."
-              className="h-9 min-w-0 flex-[1.4] text-sm"
-            />
-          </div>
-        ) : (
-          <div>
-            <Input
-              value={urlDraft}
-              onChange={(e) => {
-                setUrlDraft(e.target.value);
-                onUpdate(link.id, { url: e.target.value });
-              }}
-              onBlur={() => {
-                const trimmed = urlDraft.trim();
-                // Bare domains ("seu-site.com/pagina") are valid input here -
-                // normalize to a real https:// link on blur so the public
-                // page's plain `href={link.url}` still works.
-                if (trimmed && !/^https?:\/\//i.test(trimmed)) {
-                  const normalized = `https://${trimmed}`;
-                  setUrlDraft(normalized);
-                  onUpdate(link.id, { url: normalized });
-                }
+            <LinkMediaPicker
+              icon={link.icon}
+              iconVariant={link.iconVariant}
+              thumbnailUrl={link.thumbnailUrl}
+              onChange={(updates) => {
+                onUpdate(link.id, updates);
                 onSaveNow();
               }}
-              placeholder="seu-site.com/pagina"
-              className={cn("h-9 text-sm", urlInvalid && "border-destructive focus-visible:ring-destructive")}
             />
-            {urlInvalid && <p className="mt-1 text-xs text-destructive">Adicione uma URL</p>}
           </div>
-        )}
-
-        <div className="flex items-center gap-2 pt-0.5">
-          <Select value={link.buttonKind} onValueChange={(v) => handleKindChange(v as "link" | "whatsapp")}>
-            <SelectTrigger className="h-9 w-auto min-w-[128px] gap-2 text-sm">
-              <SelectValue>
-                <span className="flex items-center gap-2">
-                  {CurrentTypeIcon && <CurrentTypeIcon className="h-4 w-4" variant="brand" />}
-                  {isWhatsapp ? "WhatsApp" : "Link"}
-                </span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {TYPE_OPTIONS.map((opt) => {
-                const OptIcon = getLinkIconComponent(opt.iconValue);
-                return (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <span className="flex items-center gap-2">
-                      {OptIcon && <OptIcon className="h-4 w-4" variant="brand" />}
-                      {opt.label}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-
-          <LinkMediaPicker
-            icon={link.icon}
-            iconVariant={link.iconVariant}
-            thumbnailUrl={link.thumbnailUrl}
-            onChange={(updates) => {
-              onUpdate(link.id, updates);
-              onSaveNow();
-            }}
-          />
         </div>
-      </div>
-
-      {/* Status + visibility + delete */}
-      <div className="flex shrink-0 items-center gap-2.5 self-start pt-2">
-        <span className={cn("text-xs font-medium whitespace-nowrap", link.isActive ? "text-success" : "text-muted-foreground")}>
-          {link.isActive ? "Publicado" : "Não publicado"}
-        </span>
-        <button
-          type="button"
-          onClick={() => onToggle(link.id, !link.isActive)}
-          className="text-muted-foreground transition-colors hover:text-foreground"
-          title={link.isActive ? "Tornar não publicado" : "Publicar"}
-        >
-          {link.isActive ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => onDelete(link.id)}
-          className="text-muted-foreground transition-colors hover:text-destructive"
-          title="Excluir"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-      </div>
+      )}
     </div>
   );
 }

@@ -19,6 +19,9 @@ interface AdminLinksListProps {
   links: EditorLink[];
   /** Id of the link to briefly ring/scroll to (e.g. just clicked in the live preview panel). */
   highlightedId?: string | null;
+  /** Id of the single "button" card currently showing its full edit fields - every other one stays collapsed. */
+  expandedId?: string | null;
+  onToggleExpand: (id: string) => void;
   onReorder: (newOrder: string[]) => void;
   onToggle: (id: string, isActive: boolean) => void;
   onUpdate: (id: string, updates: Partial<EditorLink>) => void;
@@ -31,6 +34,8 @@ interface AdminLinksListProps {
 export function AdminLinksList({
   links,
   highlightedId,
+  expandedId,
+  onToggleExpand,
   onReorder,
   onToggle,
   onUpdate,
@@ -83,6 +88,8 @@ export function AdminLinksList({
               key={link.id}
               link={link}
               highlighted={link.id === highlightedId}
+              expanded={link.id === expandedId}
+              onToggleExpand={onToggleExpand}
               onToggle={onToggle}
               onUpdate={onUpdate}
               onSaveNow={onSaveNow}

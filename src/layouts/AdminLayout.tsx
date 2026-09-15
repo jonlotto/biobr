@@ -93,6 +93,10 @@ export default function AdminLayout() {
   // before the row exists) - "Link"/"WhatsApp" blocks are created directly
   // in local state and edited inline in their AdminLinkItem card instead.
   const [isCreatingCards, setIsCreatingCards] = useState(false);
+  // Which "button" (link/whatsapp) card is showing its full edit fields -
+  // every other one stays collapsed to a single summary row. Only one at a
+  // time, toggled by that card's own pencil icon (see AdminLinkItem).
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   // The "Adicionar link ou bloco" bottom sheet, letting the user pick
   // Link / WhatsApp / Cards first.
   const [showAddLinkSheet, setShowAddLinkSheet] = useState(false);
@@ -219,6 +223,8 @@ export default function AdminLayout() {
       cardsData: null,
     });
     setSelectedLinkId(newId);
+    // Open straight into edit mode - a blank new block is useless collapsed.
+    setExpandedId(newId);
   };
 
   const handleSaveSocial = (username: string) => {
@@ -300,10 +306,12 @@ export default function AdminLayout() {
 
   const handlePreviewClick = (type: string, linkId?: string) => {
     if (type === "link" && linkId) {
-      // For a "button" link this just highlights/scrolls to its card below
-      // (see the effect above) - "cards" blocks still open CardsInfoEditor,
+      // For a "button" link this highlights/scrolls to its card and expands
+      // it so its fields are actually visible (see the effect above) -
+      // "cards" blocks ignore `expanded` and still open CardsInfoEditor,
       // gated on selectedLinkId further down.
       setSelectedLinkId(linkId);
+      setExpandedId(linkId);
     } else if (type === "avatar" || type === "username" || type === "bio") {
       navigate("/editor");
     }
@@ -390,6 +398,8 @@ export default function AdminLayout() {
               <AdminLinksList
                 links={buttons}
                 highlightedId={selectedLinkId}
+                expandedId={expandedId}
+                onToggleExpand={(id) => setExpandedId((prev) => (prev === id ? null : id))}
                 onReorder={reorderLinks}
                 onToggle={handleToggleLink}
                 onUpdate={updateLink}

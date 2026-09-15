@@ -54,6 +54,8 @@ import {
   siShopify,
   siPaypal,
   siApplemusic,
+  siApple,
+  siAndroid,
 } from "simple-icons";
 
 // Color variant a link's icon renders in, chosen per-link in the "Biblioteca
@@ -185,6 +187,11 @@ export const SOCIAL_ICONS: LinkIconEntry[] = [
   { value: "si-shopify", label: "Shopify", Icon: brandIcon(siShopify), color: siShopify.hex },
   { value: "si-paypal", label: "PayPal", Icon: brandIcon(siPaypal), color: siPaypal.hex },
   { value: "si-applemusic", label: "Apple Music", Icon: brandIcon(siApplemusic), color: siApplemusic.hex },
+  { value: "si-apple", label: "Apple", Icon: brandIcon(siApple), color: siApple.hex },
+  { value: "si-android", label: "Android", Icon: brandIcon(siAndroid), color: siAndroid.hex },
+  // No "si-amazon" entry: simple-icons has no Amazon logo (removed at the
+  // trademark holder's request, same situation as LinkedIn above) and there's
+  // no hand-picked fallback for it yet.
 ];
 
 // Value auto-assigned when a link's type is switched to "WhatsApp" - kept
