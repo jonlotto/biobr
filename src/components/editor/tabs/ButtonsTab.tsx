@@ -53,6 +53,10 @@ export function ButtonsTab({
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-xl",
+        buttonKind: "link",
+        whatsappCountryCode: null,
+        whatsappPhone: null,
+        whatsappMessage: null,
         cardsData: null,
       });
     }

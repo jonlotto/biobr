@@ -8,16 +8,17 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { buildSubdomainUrl } from "@/utils/subdomain";
 import { cn } from "@/lib/utils";
 import { QrCodeModal } from "./QrCodeModal";
+import type { AdminView } from "@/layouts/AdminLayout";
 
 interface AdminSidebarProps {
-  activeSection: "links" | "design" | "settings";
+  activeSection: AdminView;
   username?: string;
-  onNavigate?: (view: "links" | "design" | "settings") => void;
+  onNavigate?: (view: AdminView) => void;
   /** Called before navigating away to a different page (Usuários) or signing out. Return false to cancel. */
   onBeforeNavigate?: () => boolean;
 }
 
-const NAV_ITEMS: { view: "links" | "design" | "settings"; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
+const NAV_ITEMS: { view: AdminView; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { view: "links", label: "Links", icon: Link2 },
   { view: "design", label: "Design", icon: Palette },
   { view: "settings", label: "Configurações", icon: Settings },
@@ -72,11 +73,11 @@ export function AdminSidebar({ activeSection, username, onNavigate, onBeforeNavi
   const { isAdmin } = useUserRole();
   const [qrOpen, setQrOpen] = useState(false);
 
-  const handleNavClick = (view: "links" | "design" | "settings") => {
+  const handleNavClick = (view: AdminView) => {
     if (onNavigate) {
       onNavigate(view);
     } else {
-      const paths = { links: "/admin", design: "/design", settings: "/settings" };
+      const paths: Record<AdminView, string> = { links: "/admin", design: "/design", analytics: "/analytics", settings: "/settings" };
       navigate(paths[view]);
     }
   };

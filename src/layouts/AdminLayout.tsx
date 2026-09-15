@@ -3,6 +3,8 @@ import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEditorState, EditorLink, CardItem } from "@/hooks/useEditorState";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { MobileBottomNav } from "@/components/admin/MobileBottomNav";
+import { AnalyticsSection } from "@/components/admin/AnalyticsSection";
 import { ProfileHeaderCard } from "@/components/admin/ProfileHeaderCard";
 import { OnboardingCards } from "@/components/admin/OnboardingCards";
 import { SocialIconsSection } from "@/components/admin/SocialIconsSection";
@@ -11,7 +13,6 @@ import { AdminRealtimePreview } from "@/components/admin/AdminRealtimePreview";
 import { AddLinkSheet, type AddLinkOptionId } from "@/components/admin/AddLinkSheet";
 import { DesignDrilldownView } from "@/components/design/DesignDrilldownView";
 import { EditorPreview } from "@/components/editor/EditorPreview";
-import { ButtonEditDrawer } from "@/components/editor/ButtonEditDrawer";
 import { CardsInfoEditor } from "@/components/editor/CardsInfoEditor";
 import { SocialAddModal } from "@/components/editor/SocialAddModal";
 import { SettingsSection } from "@/components/design/sections/SettingsSection";
@@ -24,6 +25,8 @@ import { TwitterIcon } from "@/components/icons/TwitterIcon";
 import { LinkedInIcon } from "@/components/icons/LinkedInIcon";
 import { EmailIcon } from "@/components/icons/EmailIcon";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
+import { WHATSAPP_DEFAULT_ICON_VALUE } from "@/lib/linkIcons";
+import { DEFAULT_WHATSAPP_COUNTRY_CODE } from "@/lib/whatsapp";
 
 export interface SocialPlatform {
   id: string;
@@ -44,7 +47,7 @@ export const SOCIAL_PLATFORMS: SocialPlatform[] = [
   { id: "email", name: "Email", icon: "email-icon", Icon: EmailIcon, urlTemplate: "mailto:{email}" },
 ];
 
-export type AdminView = "links" | "design" | "settings";
+export type AdminView = "links" | "design" | "analytics" | "settings";
 
 export default function AdminLayout() {
   const { user, loading: authLoading } = useAuth();
@@ -54,6 +57,7 @@ export default function AdminLayout() {
   // Determine initial view based on URL
   const getInitialView = (): AdminView => {
     if (location.pathname === "/design") return "design";
+    if (location.pathname === "/analytics") return "analytics";
     if (location.pathname === "/settings") return "settings";
     return "links";
   };
@@ -84,20 +88,13 @@ export default function AdminLayout() {
   // Snapshot of the social link being edited, if the clicked platform already
   // has one configured — used only to pre-fill the modal's input value.
   const [editingSocial, setEditingSocial] = useState<EditorLink | null>(null);
-  // Whether the drawer is open to create a brand-new link rather than edit
-  // an existing one - the link only enters local state (via addLink) once
-  // the drawer's own Save is confirmed, so Cancel/overlay/X never leaves a
-  // stray "Novo Link" behind for autosave to persist. While true,
-  // `selectedLinkId` stays null (there's no link yet to select).
-  const [isCreatingLink, setIsCreatingLink] = useState(false);
-  // Preselects ButtonEditDrawer's "Tipo" radio when creating (set by which
-  // AddLinkSheet option was tapped) - irrelevant once editing an existing link.
-  const [creatingButtonType, setCreatingButtonType] = useState<"link" | "whatsapp">("link");
-  // Same "create vs edit" split as isCreatingLink above, but for the Cards
-  // informativos editor instead of ButtonEditDrawer.
+  // "Cards informativos" is the only add-link option left that still needs a
+  // create-vs-edit split (it opens a dedicated dialog to fill in its cards
+  // before the row exists) - "Link"/"WhatsApp" blocks are created directly
+  // in local state and edited inline in their AdminLinkItem card instead.
   const [isCreatingCards, setIsCreatingCards] = useState(false);
-  // The "Adicionar link ou bloco" bottom sheet - replaces the old direct-open
-  // of ButtonEditDrawer, letting the user pick Link / WhatsApp / Cards first.
+  // The "Adicionar link ou bloco" bottom sheet, letting the user pick
+  // Link / WhatsApp / Cards first.
   const [showAddLinkSheet, setShowAddLinkSheet] = useState(false);
   // Which Design sub-page to open straight into on the next switch to
   // "design" - set when an onboarding card jumps there directly (e.g.
@@ -130,6 +127,20 @@ export default function AdminLayout() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [activeView, isDirty]);
 
+  // Clicking a "button" link in the live preview panel sets selectedLinkId
+  // purely to highlight/scroll to its card in the list below (see
+  // AdminLinkItem's `highlighted` prop) - fade it back out on its own after a
+  // beat, since there's no dialog here to dismiss it. "cards" blocks are
+  // excluded: their own dialog (gated on selectedLinkId further down) manages
+  // this id's lifecycle itself.
+  useEffect(() => {
+    if (!selectedLinkId) return;
+    const link = links.find((l) => l.id === selectedLinkId);
+    if (link?.linkType !== "button") return;
+    const timeout = setTimeout(() => setSelectedLinkId(null), 2000);
+    return () => clearTimeout(timeout);
+  }, [selectedLinkId, links, setSelectedLinkId]);
+
   // Handle view change - update URL without full navigation
   const handleViewChange = (view: AdminView, designCategory?: "header") => {
     if (view === activeView) return;
@@ -137,7 +148,7 @@ export default function AdminLayout() {
     setActiveView(view);
     setDesignInitialCategory(view === "design" ? designCategory ?? null : null);
     // Update URL without reload
-    const paths = { links: "/admin", design: "/design", settings: "/settings" };
+    const paths: Record<AdminView, string> = { links: "/admin", design: "/design", analytics: "/analytics", settings: "/settings" };
     window.history.replaceState(null, "", paths[view]);
   };
 
@@ -184,10 +195,30 @@ export default function AdminLayout() {
     setSelectedLinkId(null);
     if (option === "cards") {
       setIsCreatingCards(true);
-    } else {
-      setCreatingButtonType(option);
-      setIsCreatingLink(true);
+      return;
     }
+
+    // "Link"/"WhatsApp" blocks are created empty and filled in inline, right
+    // in their new AdminLinkItem card - no separate create dialog anymore.
+    const newId = addLink({
+      title: "",
+      url: "",
+      icon: option === "whatsapp" ? WHATSAPP_DEFAULT_ICON_VALUE : null,
+      iconVariant: option === "whatsapp" ? "brand" : null,
+      thumbnailUrl: null,
+      linkType: "button",
+      style: "filled",
+      isActive: true,
+      buttonBgColor: null,
+      buttonTextColor: null,
+      buttonBorderRadius: "rounded-xl",
+      buttonKind: option,
+      whatsappCountryCode: option === "whatsapp" ? DEFAULT_WHATSAPP_COUNTRY_CODE : null,
+      whatsappPhone: null,
+      whatsappMessage: null,
+      cardsData: null,
+    });
+    setSelectedLinkId(newId);
   };
 
   const handleSaveSocial = (username: string) => {
@@ -224,6 +255,10 @@ export default function AdminLayout() {
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-full",
+        buttonKind: "link",
+        whatsappCountryCode: null,
+        whatsappPhone: null,
+        whatsappMessage: null,
         cardsData: null,
       });
     }
@@ -234,25 +269,6 @@ export default function AdminLayout() {
 
   const handleToggleLink = (id: string, isActive: boolean) => {
     updateLink(id, { isActive });
-  };
-
-  const handleSaveLink = (data: Pick<EditorLink, "title" | "url" | "icon" | "iconVariant" | "isActive"> & { thumbnailUrl?: string | null }) => {
-    if (isCreatingLink) {
-      addLink({
-        ...data,
-        thumbnailUrl: data.thumbnailUrl ?? null,
-        linkType: "button",
-        style: "filled",
-        buttonBgColor: null,
-        buttonTextColor: null,
-        buttonBorderRadius: "rounded-xl",
-        cardsData: null,
-      });
-      setIsCreatingLink(false);
-    } else if (selectedLinkId) {
-      updateLink(selectedLinkId, { ...data, thumbnailUrl: data.thumbnailUrl ?? null });
-      setSelectedLinkId(null);
-    }
   };
 
   const handleSaveCards = (cardsData: CardItem[]) => {
@@ -269,6 +285,10 @@ export default function AdminLayout() {
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-xl",
+        buttonKind: "link",
+        whatsappCountryCode: null,
+        whatsappPhone: null,
+        whatsappMessage: null,
         cardsData,
       });
       setIsCreatingCards(false);
@@ -280,8 +300,10 @@ export default function AdminLayout() {
 
   const handlePreviewClick = (type: string, linkId?: string) => {
     if (type === "link" && linkId) {
+      // For a "button" link this just highlights/scrolls to its card below
+      // (see the effect above) - "cards" blocks still open CardsInfoEditor,
+      // gated on selectedLinkId further down.
       setSelectedLinkId(linkId);
-      setIsCreatingLink(false);
     } else if (type === "avatar" || type === "username" || type === "bio") {
       navigate("/editor");
     }
@@ -289,8 +311,16 @@ export default function AdminLayout() {
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] bg-background overflow-hidden">
-      {/* Collapsible animated sidebar (desktop: hover to expand, mobile: fullscreen menu) */}
+      {/* Collapsible animated sidebar (desktop: hover to expand; mobile: just the top logo bar - navigation on mobile is handled by MobileBottomNav below) */}
       <AdminSidebar
+        activeSection={activeView}
+        username={profile.username}
+        onNavigate={handleViewChange}
+        onBeforeNavigate={confirmDiscardDesignChanges}
+      />
+
+      {/* Mobile-only fixed bottom navigation bar (replaces the old fullscreen hamburger menu) */}
+      <MobileBottomNav
         activeSection={activeView}
         username={profile.username}
         onNavigate={handleViewChange}
@@ -301,7 +331,7 @@ export default function AdminLayout() {
         {/* Main Content */}
         {activeView === "links" ? (
           <main key="links" className="flex-1 overflow-auto animate-fade-in">
-          <div className="max-w-2xl mx-auto py-8 px-6">
+          <div className="max-w-2xl mx-auto pt-8 px-6 pb-24 md:pb-8">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-display font-bold">Seus Links</h1>
@@ -359,14 +389,13 @@ export default function AdminLayout() {
             {buttons.length > 0 ? (
               <AdminLinksList
                 links={buttons}
+                highlightedId={selectedLinkId}
                 onReorder={reorderLinks}
                 onToggle={handleToggleLink}
-                onEdit={(id) => {
-                  // Which dialog actually opens is decided by selectedLink's
-                  // own linkType (ButtonEditDrawer vs CardsInfoEditor below) -
-                  // this just clears both "creating a new one" flags.
+                onUpdate={updateLink}
+                onSaveNow={saveNow}
+                onEditCards={(id) => {
                   setSelectedLinkId(id);
-                  setIsCreatingLink(false);
                   setIsCreatingCards(false);
                 }}
                 onDelete={deleteLink}
@@ -407,12 +436,18 @@ export default function AdminLayout() {
           onSave={save}
           initialCategory={designInitialCategory ?? undefined}
         />
+      ) : activeView === "analytics" ? (
+        <main key="analytics" className="flex-1 overflow-y-auto animate-fade-in">
+          <div className="max-w-xl mx-auto pt-8 px-6 pb-24 md:pb-8">
+            <AnalyticsSection />
+          </div>
+        </main>
       ) : (
-        <main 
+        <main
           key="settings"
           className="flex-1 overflow-y-auto animate-fade-in"
         >
-          <div className="max-w-xl mx-auto py-8 px-6">
+          <div className="max-w-xl mx-auto pt-8 px-6 pb-24 md:pb-8">
             <SettingsSection />
           </div>
         </main>
@@ -428,23 +463,11 @@ export default function AdminLayout() {
         </aside>
       </div>
 
-      {/* Button Edit Drawer - only for links view */}
+      {/* "Adicionar link ou bloco" bottom sheet - only for links view */}
       <AddLinkSheet
         open={showAddLinkSheet}
         onClose={() => setShowAddLinkSheet(false)}
         onSelect={handleSelectAddOption}
-      />
-
-      <ButtonEditDrawer
-        open={isCreatingLink || (!!selectedLinkId && selectedLink?.linkType !== "cards")}
-        onClose={() => {
-          setSelectedLinkId(null);
-          setIsCreatingLink(false);
-        }}
-        onSave={handleSaveLink}
-        initialData={selectedLink?.linkType !== "cards" ? selectedLink || null : null}
-        isNew={isCreatingLink}
-        initialButtonType={creatingButtonType}
       />
 
       <CardsInfoEditor

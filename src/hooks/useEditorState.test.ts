@@ -85,6 +85,10 @@ describe("useEditorState - add link race with autosave", () => {
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-xl",
+        buttonKind: "link",
+        whatsappCountryCode: null,
+        whatsappPhone: null,
+        whatsappMessage: null,
         cardsData: null,
       });
       result.current.setSelectedLinkId(newId);
@@ -160,6 +164,10 @@ describe("useEditorState - add link race with autosave", () => {
         buttonBgColor: null,
         buttonTextColor: null,
         buttonBorderRadius: "rounded-xl",
+        buttonKind: "link",
+        whatsappCountryCode: null,
+        whatsappPhone: null,
+        whatsappMessage: null,
         cardsData: null,
       });
     });

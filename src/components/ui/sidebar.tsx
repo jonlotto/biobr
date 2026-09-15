@@ -1,8 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Link, type LinkProps } from "react-router-dom";
 import React, { useState, createContext, useContext } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { motion } from "framer-motion";
 import vtrineWordmark from "@/assets/biobr-logo.png";
 import vtrineMark from "@/assets/ft005-logo.png";
 
@@ -104,57 +103,23 @@ export const DesktopSidebar = ({
   );
 };
 
+// Mobile top bar: just the logo. The fullscreen hamburger panel this used to
+// open is gone - MobileBottomNav now owns mobile navigation, including the
+// QR Code / "Ver minha página" / "Sair" actions that used to live here.
 export const MobileSidebar = ({
   className,
-  children,
+  children: _children,
   ...props
 }: React.ComponentProps<"div">) => {
-  const { open, setOpen } = useSidebar();
   return (
-    <>
-      <div
-        className={cn(
-          "min-h-14 px-4 pt-[env(safe-area-inset-top)] flex flex-row md:hidden items-center justify-between bg-black w-full"
-        )}
-        {...props}
-      >
-        <Logo />
-        <Menu
-          className="text-white cursor-pointer shrink-0"
-          onClick={() => setOpen(!open)}
-        />
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ x: "-100%", opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "-100%", opacity: 0 }}
-              transition={{
-                duration: 0.3,
-                ease: "easeInOut",
-              }}
-              className={cn(
-                "fixed h-full w-full inset-0 bg-black p-10 z-[100] flex flex-col justify-between",
-                className
-              )}
-              // Closes on any click inside - nav items, "Sair", the QR Code
-              // button, etc. all just fire-and-dismiss, so there's no case
-              // where the menu should stay open after something in it gets
-              // clicked.
-              onClick={() => setOpen(false)}
-            >
-              <div
-                className="absolute right-10 top-10 z-50 text-white cursor-pointer"
-                onClick={() => setOpen(!open)}
-              >
-                <X />
-              </div>
-              {children}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </>
+    <div
+      className={cn(
+        "min-h-14 px-4 pt-[env(safe-area-inset-top)] flex flex-row md:hidden items-center justify-between bg-black w-full"
+      )}
+      {...props}
+    >
+      <Logo />
+    </div>
   );
 };
 

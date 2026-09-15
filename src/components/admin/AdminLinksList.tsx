@@ -17,18 +17,25 @@ import { AdminLinkItem } from "./AdminLinkItem";
 
 interface AdminLinksListProps {
   links: EditorLink[];
+  /** Id of the link to briefly ring/scroll to (e.g. just clicked in the live preview panel). */
+  highlightedId?: string | null;
   onReorder: (newOrder: string[]) => void;
   onToggle: (id: string, isActive: boolean) => void;
-  onEdit: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<EditorLink>) => void;
+  onSaveNow: () => void;
+  onEditCards: (id: string) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
 }
 
 export function AdminLinksList({
   links,
+  highlightedId,
   onReorder,
   onToggle,
-  onEdit,
+  onUpdate,
+  onSaveNow,
+  onEditCards,
   onDelete,
   onDuplicate,
 }: AdminLinksListProps) {
@@ -75,8 +82,11 @@ export function AdminLinksList({
             <AdminLinkItem
               key={link.id}
               link={link}
+              highlighted={link.id === highlightedId}
               onToggle={onToggle}
-              onEdit={onEdit}
+              onUpdate={onUpdate}
+              onSaveNow={onSaveNow}
+              onEditCards={onEditCards}
               onDelete={onDelete}
               onDuplicate={onDuplicate}
             />

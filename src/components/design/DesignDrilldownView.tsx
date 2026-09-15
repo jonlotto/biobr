@@ -97,7 +97,7 @@ export function DesignDrilldownView({ profile, links, onUpdate, isSaving, isDirt
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-20 md:pb-0">
         <div className="mx-auto max-w-2xl px-4 py-6 md:px-6">
           {activeCategory === null ? (
             <div className="space-y-6">

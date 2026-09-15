@@ -18,9 +18,12 @@ export type Database = {
         Row: {
           button_bg_color: string | null
           button_border_radius: string | null
+          button_kind: string | null
           button_text_color: string | null
+          cards_data: Json | null
           created_at: string
           icon: string | null
+          icon_variant: string | null
           id: string
           is_active: boolean
           link_type: string | null
@@ -31,13 +34,19 @@ export type Database = {
           updated_at: string
           url: string
           user_id: string
+          whatsapp_country_code: string | null
+          whatsapp_message: string | null
+          whatsapp_phone: string | null
         }
         Insert: {
           button_bg_color?: string | null
           button_border_radius?: string | null
+          button_kind?: string | null
           button_text_color?: string | null
+          cards_data?: Json | null
           created_at?: string
           icon?: string | null
+          icon_variant?: string | null
           id?: string
           is_active?: boolean
           link_type?: string | null
@@ -48,13 +57,19 @@ export type Database = {
           updated_at?: string
           url: string
           user_id: string
+          whatsapp_country_code?: string | null
+          whatsapp_message?: string | null
+          whatsapp_phone?: string | null
         }
         Update: {
           button_bg_color?: string | null
           button_border_radius?: string | null
+          button_kind?: string | null
           button_text_color?: string | null
+          cards_data?: Json | null
           created_at?: string
           icon?: string | null
+          icon_variant?: string | null
           id?: string
           is_active?: boolean
           link_type?: string | null
@@ -65,6 +80,9 @@ export type Database = {
           updated_at?: string
           url?: string
           user_id?: string
+          whatsapp_country_code?: string | null
+          whatsapp_message?: string | null
+          whatsapp_phone?: string | null
         }
         Relationships: []
       }

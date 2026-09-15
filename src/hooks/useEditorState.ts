@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { HeaderLayout } from "@/lib/headerLayouts";
 import type { ButtonLayout } from "@/lib/buttonLayouts";
 import type { IconVariant } from "@/lib/linkIcons";
+import type { Json } from "@/integrations/supabase/types";
 
 // One slide inside a "cards informativos" block - purely informational, not
 // individually clickable (see CardsCarousel). subtitle is optional; cards
@@ -43,6 +44,19 @@ export interface EditorLink {
   buttonBgColor: string | null;
   buttonTextColor: string | null;
   buttonBorderRadius: string;
+  // Only meaningful when linkType is "button": whether it opens a plain url
+  // or a WhatsApp chat. Kept separate from linkType (which already
+  // distinguishes button/social/cards) so existing filters on that field
+  // don't need to change. Defaults to "link" for every row saved before this
+  // existed.
+  buttonKind: "link" | "whatsapp";
+  // WhatsApp fields - only set when buttonKind is "whatsapp". `url` is still
+  // kept in sync as a real https://wa.me/... link (built from these) so the
+  // public bio page renderer, which just does href={link.url}, needs no
+  // changes.
+  whatsappCountryCode: string | null;
+  whatsappPhone: string | null;
+  whatsappMessage: string | null;
   // Only set (non-null) when linkType is "cards".
   cardsData: CardItem[] | null;
 }
@@ -226,8 +240,8 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           title: link.title,
           url: link.url,
           icon: link.icon,
-          iconVariant: ((link as any).icon_variant as IconVariant | null) || null,
-          thumbnailUrl: (link as any).thumbnail_url || null,
+          iconVariant: (link.icon_variant as IconVariant | null) || null,
+          thumbnailUrl: link.thumbnail_url || null,
           linkType: (link.link_type as "button" | "social" | "cards") || "button",
           style: (link.style as "filled" | "outline") || "filled",
           isActive: link.is_active,
@@ -235,7 +249,11 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           buttonBgColor: link.button_bg_color || null,
           buttonTextColor: link.button_text_color || null,
           buttonBorderRadius: link.button_border_radius || "rounded-xl",
-          cardsData: ((link as any).cards_data as CardItem[] | null) || null,
+          buttonKind: (link.button_kind as "link" | "whatsapp" | null) || "link",
+          whatsappCountryCode: link.whatsapp_country_code || null,
+          whatsappPhone: link.whatsapp_phone || null,
+          whatsappMessage: link.whatsapp_message || null,
+          cardsData: (link.cards_data as unknown as CardItem[] | null) || null,
         }));
 
         // A changed template from the URL counts as a pending edit, so don't
@@ -344,7 +362,14 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           button_bg_color: link.buttonBgColor,
           button_text_color: link.buttonTextColor,
           button_border_radius: link.buttonBorderRadius,
-          cards_data: link.cardsData,
+          button_kind: link.buttonKind,
+          whatsapp_country_code: link.whatsappCountryCode,
+          whatsapp_phone: link.whatsappPhone,
+          whatsapp_message: link.whatsappMessage,
+          // CardItem[] is structurally Json-compatible but TS won't infer that
+          // through a plain `interface` (no index signature) - cast rather
+          // than restructure CardItem just to satisfy the generated Json type.
+          cards_data: link.cardsData as unknown as Json,
         };
 
         if (link.id.startsWith("temp-")) {
