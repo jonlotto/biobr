@@ -114,7 +114,7 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-14 px-4 flex flex-row md:hidden items-center justify-between bg-black w-full"
+          "min-h-14 px-4 pt-[env(safe-area-inset-top)] flex flex-row md:hidden items-center justify-between bg-black w-full"
         )}
         {...props}
       >
@@ -137,6 +137,11 @@ export const MobileSidebar = ({
                 "fixed h-full w-full inset-0 bg-black p-10 z-[100] flex flex-col justify-between",
                 className
               )}
+              // Closes on any click inside - nav items, "Sair", the QR Code
+              // button, etc. all just fire-and-dismiss, so there's no case
+              // where the menu should stay open after something in it gets
+              // clicked.
+              onClick={() => setOpen(false)}
             >
               <div
                 className="absolute right-10 top-10 z-50 text-white cursor-pointer"

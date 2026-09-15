@@ -288,7 +288,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-background overflow-hidden">
+    <div className="flex flex-col md:flex-row h-[100dvh] bg-background overflow-hidden">
       {/* Collapsible animated sidebar (desktop: hover to expand, mobile: fullscreen menu) */}
       <AdminSidebar
         activeSection={activeView}
