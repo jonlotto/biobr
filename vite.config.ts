@@ -22,8 +22,8 @@ export default defineConfig(({ mode }) => ({
         name: "VtrineBio - Seus links em um só lugar",
         short_name: "VtrineBio",
         description: "Tenha seus links em um só lugar!",
-        theme_color: "#000000",
-        background_color: "#000000",
+        theme_color: "#ffffff",
+        background_color: "#ffffff",
         display: "standalone",
         start_url: "/",
         icons: [

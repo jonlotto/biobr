@@ -458,13 +458,17 @@ export default function AdminLayout() {
           className="flex-1 overflow-y-auto animate-fade-in"
         >
           <div className="max-w-xl mx-auto pt-8 px-6 pb-24 md:pb-8">
-            <SettingsSection />
+            <SettingsSection profile={profile} onUpdate={updateProfile} />
           </div>
         </main>
         )}
 
-        {/* Preview Panel */}
-        <aside className="w-[380px] border-l border-border bg-muted/30 flex-shrink-0 p-6 flex items-center justify-center hidden lg:flex">
+        {/* Preview Panel - overflow-y-auto is a safety net: the phone frame
+            itself now caps at 70dvh (see EditorPreview.tsx) so this should
+            rarely need to actually scroll, but a fixed height + the "Abrir
+            em nova aba" button below it can still add up to more than a very
+            short viewport can fit. */}
+        <aside className="w-[380px] border-l border-border bg-muted/30 flex-shrink-0 p-6 flex items-center justify-center overflow-y-auto hidden lg:flex">
           <EditorPreview
             profile={profile}
             links={links}

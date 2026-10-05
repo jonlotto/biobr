@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Check, ChevronDown, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EditorProfile } from "@/hooks/useEditorState";
@@ -9,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { loadGoogleFonts } from "@/lib/googleFonts";
 
 interface TextSectionProps {
   profile: EditorProfile;
@@ -49,6 +51,13 @@ const FONTS = [
 // (font + size).
 export function TextSection({ profile, onUpdate }: TextSectionProps) {
   const selectedFont = FONTS.find(f => f.id === profile.titleFont) || FONTS[0];
+
+  // The dropdown below previews every option in its own font, so (unlike
+  // BioPage/useEditorState, which only ever need the one active font) this
+  // section needs the whole set loaded up front.
+  useEffect(() => {
+    loadGoogleFonts(FONTS.map((f) => f.id));
+  }, []);
 
   const handleResetText = () => {
     onUpdate({

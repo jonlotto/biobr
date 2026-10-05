@@ -58,19 +58,6 @@ function LayoutThumb({ layoutId, avatarUrl, primaryColor }: { layoutId: string; 
     );
   }
 
-  if (layoutId === "banner-card") {
-    return (
-      <div className="relative flex h-full w-full flex-col">
-        <div className="h-[58%] w-full" style={{ backgroundColor: primaryColor }} />
-        <div className="flex-1 bg-white" />
-        <div className="absolute left-1/2 top-[46%] flex -translate-x-1/2 items-center gap-1 rounded-md border border-border bg-white px-1.5 py-1 shadow">
-          <div className="h-3 w-3 shrink-0 overflow-hidden rounded-sm bg-muted-foreground/20">{avatarNode}</div>
-          <div className="h-1 w-6 rounded-full bg-muted-foreground/30" />
-        </div>
-      </div>
-    );
-  }
-
   if (layoutId === "editorial-badge") {
     return (
       <div className="flex h-full w-full items-center gap-1.5 bg-neutral-900 px-2">

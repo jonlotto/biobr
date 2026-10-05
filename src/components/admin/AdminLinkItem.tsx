@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { GripVertical, Trash2, Copy, Pencil, LayoutGrid } from "lucide-react";
+import { GripVertical, Trash2, Copy, Pencil, LayoutGrid, MoreVertical } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { EditorLink } from "@/hooks/useEditorState";
@@ -203,28 +204,34 @@ export function AdminLinkItem({ link, highlighted, expanded, onToggleExpand, onT
         </div>
 
         <Switch checked={link.isActive} onCheckedChange={(checked) => onToggle(link.id, checked)} />
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "h-8 w-8 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100",
-            expanded && "text-primary opacity-100",
-          )}
-          onClick={() => onToggleExpand(link.id)}
-        >
-          <Pencil className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100" onClick={() => onDuplicate(link.id)}>
-          <Copy className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 text-destructive hover:text-destructive"
-          onClick={() => onDelete(link.id)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn("h-8 w-8 shrink-0", expanded && "text-primary")}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onToggleExpand(link.id)} className="cursor-pointer">
+              <Pencil className="mr-2 h-4 w-4" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDuplicate(link.id)} className="cursor-pointer">
+              <Copy className="mr-2 h-4 w-4" />
+              Duplicar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onDelete(link.id)}
+              className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Edit fields - only rendered while expanded */}

@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense, type ComponentProps } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import ProfileHeader from "@/components/ProfileHeader";
 import { renderIcon } from "@/components/LinkCard";
 import { Link2, ChevronRight } from "lucide-react";
@@ -13,21 +12,29 @@ import { resolveHeaderLayout } from "@/lib/headerLayouts";
 import { resolveButtonLayout } from "@/lib/buttonLayouts";
 import { hexToRgba } from "@/lib/color";
 import { VerifiedBadge } from "@/components/icons/VerifiedBadge";
-import { CardsCarousel } from "@/components/CardsCarousel";
+import { loadGoogleFonts } from "@/lib/googleFonts";
+import { fetchBio, readCachedBio, writeCachedBio } from "@/lib/bioData";
+import { SensitiveContentGate } from "@/components/SensitiveContentGate";
+import { isContentWarningLevel, getStoredGateAnswer, setStoredGateAnswer, type GateAnswer } from "@/lib/contentWarning";
 import type { CardItem } from "@/hooks/useEditorState";
 import type { Tables } from "@/integrations/supabase/types";
 
+// Lazy: "cards" blocks are one link type among several, and framer-motion
+// (CardsCarousel's dependency) is otherwise admin-only - most bio pages
+// never render this, so it shouldn't ship in the public page's initial chunk.
+const CardsCarousel = lazy(() =>
+  import("@/components/CardsCarousel").then((m) => ({ default: m.CardsCarousel })),
+);
+function CardsCarouselSlot(props: ComponentProps<typeof CardsCarousel>) {
+  return (
+    <Suspense fallback={null}>
+      <CardsCarousel {...props} />
+    </Suspense>
+  );
+}
+
 type Profile = Tables<"profiles">;
 type LinkType = Tables<"links">;
-
-const preloadImage = (src: string): Promise<void> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve();
-    img.onerror = () => resolve(); // Don't block on error
-    img.src = src;
-  });
-};
 
 const BioPage = () => {
   const { username: pathUsername } = useParams<{ username: string }>();
@@ -37,76 +44,59 @@ const BioPage = () => {
   const subdomain = extractSubdomain();
   const username = subdomain || pathUsername;
   
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [links, setLinks] = useState<LinkType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [imageLoading, setImageLoading] = useState(false);
+  // Seeded from the last visit's copy (if any) so a returning visitor sees the
+  // page on the very first paint - the fetch below then refreshes it.
+  const [cached] = useState(() => (username ? readCachedBio(username.toLowerCase()) : null));
+  const [profile, setProfile] = useState<Profile | null>(cached?.profile ?? null);
+  const [links, setLinks] = useState<LinkType[]>(cached?.links ?? []);
+  const [loading, setLoading] = useState(!cached);
   const [notFound, setNotFound] = useState(false);
+  // Remembered for this browser session only (see getStoredGateAnswer) - read
+  // eagerly since `username` is already known synchronously, before the
+  // profile fetch even starts.
+  const [gateAnswer, setGateAnswer] = useState<GateAnswer | null>(() =>
+    username ? getStoredGateAnswer(username) : null,
+  );
 
   useEffect(() => {
-    if (username) {
-      fetchProfile();
-    }
+    if (!username) return;
+    const key = username.toLowerCase();
+    let cancelled = false;
+
+    if (cached?.profile) loadGoogleFonts([(cached.profile as any).title_font || "Inter"]);
+
+    fetchBio(key)
+      .then((data) => {
+        if (cancelled) return;
+        writeCachedBio(key, data);
+        if (!data.profile) {
+          setNotFound(true);
+          return;
+        }
+        setProfile(data.profile);
+        setLinks(data.links);
+        loadGoogleFonts([(data.profile as any).title_font || "Inter"]);
+      })
+      .catch((error) => {
+        console.error("Error fetching profile:", error);
+        // Keep showing the cached copy if there is one - a flaky network
+        // shouldn't turn an already-rendered page into "not found".
+        if (!cancelled && !cached) setNotFound(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [username]);
 
-  const fetchProfile = async () => {
-    try {
-      // Fetch profile by username
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("username", username?.toLowerCase())
-        .single();
-
-      if (profileError || !profileData) {
-        setNotFound(true);
-        setLoading(false);
-        return;
-      }
-
-      setProfile(profileData);
-
-      // Fetch active links
-      const { data: linksData } = await supabase
-        .from("links")
-        .select("*")
-        .eq("user_id", profileData.user_id)
-        .eq("is_active", true)
-        .order("position", { ascending: true });
-
-      setLinks(linksData || []);
-
-      // Preload background image if exists
-      const bgImage = (profileData as any).global_background_image;
-      const templateData = templates.find(t => t.slug === profileData.template_slug) || templates[0];
-      const templateBgImage = templateData.styles.backgroundType === "image" 
-        ? templateData.styles.backgroundImage 
-        : null;
-      
-      const imageToPreload = bgImage || templateBgImage;
-      
-      if (imageToPreload) {
-        setImageLoading(true);
-        await preloadImage(imageToPreload);
-        setImageLoading(false);
-      }
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-      setNotFound(true);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading || imageLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="relative flex items-center justify-center">
-          <div className="absolute w-8 h-8 bg-primary/30 rounded-full animate-ping" />
-          <div className="w-6 h-6 bg-primary rounded-full" />
-        </div>
-      </div>
-    );
+  // No spinner/skeleton: index.html already started this fetch in parallel
+  // with the JS bundle, so by the time React mounts the data has usually
+  // arrived (or is about to) - just an empty page until then.
+  if (loading) {
+    return <div className="min-h-screen" />;
   }
 
   if (notFound) {
@@ -134,6 +124,17 @@ const BioPage = () => {
       </div>
     );
   }
+
+  const contentWarningLevel = isContentWarningLevel((profile as any)?.content_warning_level)
+    ? (profile as any).content_warning_level
+    : "none";
+  // The real content still renders (blurred, behind the gate) rather than
+  // being replaced by it - see the wrapping return at the bottom of this
+  // component. No extra fetch results from that: profile/links are already
+  // loaded by this point regardless of the gate, and nothing else in this
+  // tree fires a side effect (view count, analytics, etc.) just from being
+  // mounted - the app has no such tracking today.
+  const showContentWarningGate = contentWarningLevel !== "none" && gateAnswer !== "confirmed";
 
   const template = templates.find((t) => t.slug === profile?.template_slug) || templates[0];
   const headerLayout = resolveHeaderLayout(
@@ -235,7 +236,7 @@ const BioPage = () => {
     <div className="space-y-4">
       {buttons.map((link, index) => {
         if (link.link_type === "cards") {
-          return <CardsCarousel key={link.id} cards={getCardsData(link)} />;
+          return <CardsCarouselSlot key={link.id} cards={getCardsData(link)} />;
         }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasMedia = !!(thumbnailUrl || link.icon);
@@ -254,7 +255,7 @@ const BioPage = () => {
             {hasMedia && (
               <span
                 className={cn(
-                  "absolute left-2 flex h-10 w-10 items-center justify-center overflow-hidden",
+                  "absolute left-1 flex h-10 w-10 items-center justify-center overflow-hidden",
                   shape === "round" ? "rounded-full" : "rounded-none",
                 )}
               >
@@ -273,7 +274,7 @@ const BioPage = () => {
     <div className="space-y-5">
       {buttons.map((link, index) => {
         if (link.link_type === "cards") {
-          return <CardsCarousel key={link.id} cards={getCardsData(link)} />;
+          return <CardsCarouselSlot key={link.id} cards={getCardsData(link)} />;
         }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasMedia = !!(thumbnailUrl || link.icon);
@@ -318,7 +319,7 @@ const BioPage = () => {
     <div className="space-y-4">
       {buttons.map((link, index) => {
         if (link.link_type === "cards") {
-          return <CardsCarousel key={link.id} cards={getCardsData(link)} />;
+          return <CardsCarouselSlot key={link.id} cards={getCardsData(link)} />;
         }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasMedia = !!(thumbnailUrl || link.icon);
@@ -358,7 +359,7 @@ const BioPage = () => {
     <div className={cn("overflow-hidden rounded-2xl shadow-sm", template.styles.cardBg)}>
       {buttons.map((link, index) => {
         if (link.link_type === "cards") {
-          return <CardsCarousel key={link.id} cards={getCardsData(link)} className="p-3" />;
+          return <CardsCarouselSlot key={link.id} cards={getCardsData(link)} className="p-3" />;
         }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasMedia = !!(thumbnailUrl || link.icon);
@@ -392,7 +393,7 @@ const BioPage = () => {
     <div className="space-y-4">
       {buttons.map((link, index) => {
         if (link.link_type === "cards") {
-          return <CardsCarousel key={link.id} cards={getCardsData(link)} />;
+          return <CardsCarouselSlot key={link.id} cards={getCardsData(link)} />;
         }
         const thumbnailUrl = (link as any).thumbnail_url as string | null | undefined;
         const hasImage = !!thumbnailUrl;
@@ -418,15 +419,15 @@ const BioPage = () => {
               )
             )}
 
-            {/* Gradient strip instead of a pill - readable over any image/color
-                without needing a solid backing behind the text. */}
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%]"
-              style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)" }}
-            />
+            {/* No backing behind the text - a text-shadow keeps it readable
+                over any image/color instead, without darkening the image. */}
             <span
               className="absolute inset-x-0 bottom-0 truncate text-left text-sm font-medium text-white"
-              style={{ fontFamily: linkFontFamily, padding: "10px 14px" }}
+              style={{
+                fontFamily: linkFontFamily,
+                padding: "10px 14px",
+                textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 1px 8px rgba(0,0,0,0.5)",
+              }}
             >
               {link.title}
             </span>
@@ -476,9 +477,9 @@ const BioPage = () => {
     </>
   );
 
-  return (
+  const pageContent = (
     <div className="min-h-screen flex flex-col">
-      <div 
+      <div
         className={cn("flex-1", !hasCustomBackground && !hasTemplateImageBg && template.styles.background)}
         style={backgroundStyle}
       >
@@ -561,53 +562,6 @@ const BioPage = () => {
               </div>
             </div>
           </div>
-        ) : headerLayout === "banner-card" && profile ? (
-          // Banner Card Layout - a colored cover with no round avatar; a
-          // floating elevated card overlaps the transition into the
-          // content, holding a small square logo, name and short subtitle.
-          // Buttons render below the card.
-          <div className="min-h-full flex flex-col items-center">
-            <div className="w-full max-w-md">
-              <div className="relative w-full overflow-hidden" style={{ height: 190 }}>
-                {profile.banner_url ? (
-                  <img src={profile.banner_url} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
-                ) : (
-                  <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
-                )}
-              </div>
-
-              <div className="px-4">
-                <div className={cn("relative z-10 -mt-10 flex items-center gap-3 rounded-2xl p-4 shadow-lg", template.styles.cardBg)}>
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted-foreground/20">
-                    {profile.avatar_url ? (
-                      <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <Link2 className={cn("h-5 w-5 opacity-70", template.styles.textColor)} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1 text-left">
-                    <h1
-                      className={cn("flex items-center gap-1 truncate font-bold", !(profile as any).title_color && template.styles.textColor)}
-                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
-                    >
-                      <span className="truncate">{profile.display_name || profile.username}</span>
-                      {(profile as any).show_verified_badge && <VerifiedBadge className="h-3.5 w-3.5 shrink-0" />}
-                    </h1>
-                    <p
-                      className={cn("truncate text-sm opacity-70", !(profile as any).title_color && template.styles.textColor)}
-                      style={{ fontFamily: (profile as any).title_font || "Inter", color: (profile as any).title_color || undefined }}
-                    >
-                      {profile.bio || `@${(profile as any).handle || profile.username}`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-4 pt-6 pb-12">{renderLinksAndSocials()}</div>
-            </div>
-          </div>
         ) : headerLayout === "editorial-badge" && profile ? (
           // Editorial Badge Layout - a solid dark section with a stamped
           // circular avatar on the left and an uppercase title + longer
@@ -681,6 +635,36 @@ const BioPage = () => {
           </span>
         </div>
       </footer>
+    </div>
+  );
+
+  if (!showContentWarningGate) {
+    return pageContent;
+  }
+
+  return (
+    <div className="relative min-h-screen">
+      {/* Real content still renders behind the gate (see showContentWarningGate
+          above) - the gate's own backdrop-blur is what visually hides it, not
+          this wrapper. pointer-events-none/aria-hidden keep it inert while
+          gated (unclickable links, invisible to screen readers) without
+          unmounting it. */}
+      <div aria-hidden="true" className="pointer-events-none select-none">
+        {pageContent}
+      </div>
+      <SensitiveContentGate
+        level={contentWarningLevel}
+        state={gateAnswer === "denied" ? "denied" : "gate"}
+        themeColors={{ primary: template.styles.primaryColor, accent: template.styles.accentColor }}
+        onConfirm={() => {
+          if (username) setStoredGateAnswer(username, "confirmed");
+          setGateAnswer("confirmed");
+        }}
+        onDeny={() => {
+          if (username) setStoredGateAnswer(username, "denied");
+          setGateAnswer("denied");
+        }}
+      />
     </div>
   );
 };

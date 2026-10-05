@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { loadGoogleFonts } from "@/lib/googleFonts";
+import { isContentWarningLevel, type ContentWarningLevel } from "@/lib/contentWarning";
 import type { HeaderLayout } from "@/lib/headerLayouts";
 import type { ButtonLayout } from "@/lib/buttonLayouts";
 import type { IconVariant } from "@/lib/linkIcons";
@@ -99,6 +101,9 @@ export interface EditorProfile {
   // Verified badge next to the display name - free for any shop owner to
   // enable for now, no plan restriction. Defaults to false.
   showVerifiedBadge: boolean;
+  // Age gate shown on the public bio page before the real content (see
+  // SensitiveContentGate) - "none" means no gate. Defaults to "none".
+  contentWarningLevel: ContentWarningLevel;
   // Read-only - when the profile row was created. Null until loaded from
   // Supabase (see OnboardingCards, which gates itself on this).
   createdAt: string | null;
@@ -157,6 +162,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
       titleColor: null,
       titleSize: "large",
       showVerifiedBadge: false,
+      contentWarningLevel: "none",
       createdAt: null,
     },
     links: [],
@@ -233,6 +239,9 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           titleColor: (profile as any)?.title_color || null,
           titleSize: ((profile as any)?.title_size as "small" | "large") || "large",
           showVerifiedBadge: (profile as any)?.show_verified_badge ?? false,
+          contentWarningLevel: isContentWarningLevel((profile as any)?.content_warning_level)
+            ? (profile as any).content_warning_level
+            : "none",
           createdAt: profile?.created_at || null,
         };
         const loadedLinks: EditorLink[] = (links || []).map((link) => ({
@@ -262,6 +271,8 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           profile: templateChanged ? { ...loadedProfile, templateSlug: dbTemplateSlug } : loadedProfile,
           links: loadedLinks,
         };
+
+        loadGoogleFonts([loadedProfile.titleFont]);
 
         setState((prev) => ({
           ...prev,
@@ -320,6 +331,7 @@ export function useEditorState(initialTemplateSlug?: string, options?: UseEditor
           title_color: toSave.profile.titleColor,
           title_size: toSave.profile.titleSize,
           show_verified_badge: toSave.profile.showVerifiedBadge,
+          content_warning_level: toSave.profile.contentWarningLevel,
           updated_at: new Date().toISOString(),
         } as any)
         .eq("user_id", userId);

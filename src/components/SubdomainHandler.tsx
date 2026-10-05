@@ -1,6 +1,10 @@
 import { extractSubdomain, isMainDomain } from "@/utils/subdomain";
+import { lazy } from "react";
 import BioPage from "@/pages/BioPage";
-import Index from "@/pages/Index";
+
+// Lazy: the landing page is only ever shown on the main domain, so bio
+// subdomains (the hot path) don't download it.
+const Index = lazy(() => import("@/pages/Index"));
 
 /**
  * Smart handler for root route (/)

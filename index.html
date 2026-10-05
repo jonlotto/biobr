@@ -9,7 +9,7 @@
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#ffffff">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="VtrineBio">
@@ -28,10 +28,63 @@
     <meta name="twitter:description" content="Tenha seus links em um só lugar!">
     <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/92QTuiRVg5Yt2N6zQSCX2Zhq3yJ3/social-images/social-1768777962961-1.png">
 
-    <!-- Google Fonts -->
+    <!-- Google Fonts: Inter/Poppins (the app shell's own default body/heading
+         fonts) already load via index.css's own @import. Every other family
+         the admin's font picker offers (a profile's chosen title font) is
+         injected at runtime instead, once we know which one is actually
+         needed - see src/lib/googleFonts.ts - so pages that don't need them
+         don't pay for them. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Montserrat:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Lato:wght@400;700&family=Raleway:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&family=Bebas+Neue&family=Righteous&family=Archivo+Black&family=Pacifico&family=Dancing+Script:wght@400;500;600;700&family=Caveat:wght@400;500;600;700&family=Satisfy&family=Lobster&family=Merriweather:wght@400;700&family=Lora:wght@400;500;600;700&family=Crimson+Text:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Loaded without blocking first paint (display=swap already shows the
+         fallback font until it arrives) - this used to be an @import at the
+         top of index.css, which chained a second blocking request after it. -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap"></noscript>
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin>
+
+    <!-- Bio page prefetch: on <user>.vtrine.bio, start fetching the profile and
+         its links right away, in parallel with the JS bundle download, instead
+         of only after React has booted - src/lib/bioData.ts picks the promise
+         up. The anon key goes in the query string (Supabase accepts it there)
+         so these are simple CORS GETs with no preflight round trip. -->
+    <script>
+      (function () {
+        var root = ".vtrine.bio";
+        var host = location.hostname.toLowerCase();
+        if (location.pathname !== "/" || host.slice(-root.length) !== root) return;
+        var username = host.slice(0, -root.length);
+        if (!username || ["www", "app", "admin", "api"].indexOf(username) !== -1) return;
+
+        var rest = "%VITE_SUPABASE_URL%/rest/v1/";
+        var key = "apikey=%VITE_SUPABASE_PUBLISHABLE_KEY%";
+        var get = function (url) {
+          return fetch(url).then(function (r) {
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.json();
+          });
+        };
+
+        window.__BIO_PREFETCH__ = {
+          username: username,
+          promise: get(rest + "profiles?select=*&limit=1&username=eq." + encodeURIComponent(username) + "&" + key)
+            .then(function (rows) {
+              var profile = rows[0];
+              if (!profile) return { profile: null, links: [] };
+              // Start the images downloading too, before React renders them.
+              [profile.avatar_url, profile.global_background_image, profile.banner_url].forEach(function (src) {
+                if (src) new Image().src = src;
+              });
+              return get(rest + "links?select=*&is_active=eq.true&order=position.asc&user_id=eq." + profile.user_id + "&" + key)
+                .then(function (links) {
+                  return { profile: profile, links: links };
+                });
+            }),
+        };
+        // Handled by bioData.ts's fallback - keep it out of the console.
+        window.__BIO_PREFETCH__.promise.catch(function () {});
+      })();
+    </script>
 </head>
 
   <body>

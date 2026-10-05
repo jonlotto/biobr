@@ -18,8 +18,10 @@ export function EditorPreview({ profile, links, onClickElement }: EditorPreviewP
 
   return (
     <div className="flex flex-col items-center">
-      {/* Phone Frame */}
-      <div className="relative w-[320px] h-[640px] rounded-[3rem] border-8 border-foreground/20 shadow-2xl overflow-hidden">
+      {/* Phone Frame - height caps at 70dvh (not a fixed 640px) so it shrinks
+          on short viewports instead of overflowing its container's
+          overflow-hidden ancestors uncontrolled. */}
+      <div className="relative w-[320px] h-[min(640px,70dvh)] rounded-[3rem] border-8 border-foreground/20 shadow-2xl overflow-hidden">
         {/* Notch */}
         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-foreground/20 rounded-b-2xl z-10" />
 

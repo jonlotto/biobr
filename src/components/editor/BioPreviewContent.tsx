@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { User, ChevronRight } from "lucide-react";
 import { templates } from "@/data/templates";
 import { EditorProfile, EditorLink, CardItem } from "@/hooks/useEditorState";
@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { getLinkIconComponent, getLinkIconEntry, type IconVariant } from "@/lib/linkIcons";
 import { hexToRgba } from "@/lib/color";
 import { VerifiedBadge } from "@/components/icons/VerifiedBadge";
+import { SensitiveContentGate } from "@/components/SensitiveContentGate";
+import type { GateAnswer } from "@/lib/contentWarning";
 
 // Shown in the buttons area of the preview when the user hasn't added any real
 // button yet, so the empty state still demonstrates the selected theme.
@@ -39,6 +41,12 @@ interface BioPreviewContentProps {
 }
 
 export function BioPreviewContent({ profile, links, interactive = true, onClickElement }: BioPreviewContentProps) {
+  // Local only - this is a demo of what a real visitor sees, not a real
+  // visit, so it doesn't touch sessionStorage the way BioPage's own gate
+  // does. Resets whenever the preview remounts.
+  const [previewGateAnswer, setPreviewGateAnswer] = useState<GateAnswer | null>(null);
+  const showContentWarningGate = profile.contentWarningLevel !== "none" && previewGateAnswer !== "confirmed";
+
   const template = templates.find((t) => t.slug === profile.templateSlug) || templates[0];
   const activeLinks = links.filter((l) => l.isActive).sort((a, b) => a.order - b.order);
   // "button" and "cards" both render inline among the link buttons (only
@@ -231,7 +239,7 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
               {hasMedia && (
                 <span
                   className={cn(
-                    "absolute left-2 flex h-10 w-10 items-center justify-center overflow-hidden",
+                    "absolute left-1 flex h-10 w-10 items-center justify-center overflow-hidden",
                     shape === "round" ? "rounded-full" : "rounded-none",
                   )}
                 >
@@ -266,7 +274,12 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
               <span
                 className={cn(
                   "absolute top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full shadow-md",
-                  sideLeft ? "-left-3" : "-right-3",
+                  // Smaller poke-out than BioPage's own render of this same
+                  // layout (-left-3/-right-3) - the real public page has a
+                  // wide max-w-md container to absorb it, but this preview's
+                  // 320px phone frame only has ~24px of side padding to work
+                  // with, so the full offset could reach the frame's edge.
+                  sideLeft ? "-left-1" : "-right-1",
                   chipFillClassName(),
                 )}
                 style={{ border: `4px solid ${pageBorderColor}`, ...chipFillStyle() }}
@@ -320,7 +333,10 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
               <span
                 className={cn(
                   "absolute top-1/2 flex h-[68px] w-[68px] -translate-y-1/2 items-center justify-center overflow-hidden rounded-full",
-                  sideLeft ? "-left-2" : "-right-2",
+                  // Smaller poke-out than BioPage's own render of this same
+                  // layout (-left-2/-right-2) - see the matching comment in
+                  // renderOverlapAlternateList above.
+                  sideLeft ? "-left-1" : "-right-1",
                   chipFillClassName(),
                 )}
                 style={{ border: `3px solid ${pageBorderColor}`, ...chipFillStyle() }}
@@ -396,15 +412,15 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
               )
             )}
 
-            {/* Gradient strip instead of a pill - readable over any image/color
-                without needing a solid backing behind the text. */}
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%]"
-              style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)" }}
-            />
+            {/* No backing behind the text - a text-shadow keeps it readable
+                over any image/color instead, without darkening the image. */}
             <span
               className="absolute inset-x-0 bottom-0 truncate text-left text-sm font-medium text-white"
-              style={{ fontFamily: profile.titleFont || "Inter", padding: "10px 14px" }}
+              style={{
+                fontFamily: profile.titleFont || "Inter",
+                padding: "10px 14px",
+                textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 1px 8px rgba(0,0,0,0.5)",
+              }}
             >
               {item.title}
             </span>
@@ -452,7 +468,7 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     </>
   );
 
-  return (
+  const pageContent = (
     <div
       className={cn("h-full overflow-auto", !hasCustomBackground && !hasImageBackground && template.styles.background)}
       style={backgroundStyle}
@@ -511,65 +527,6 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
             </div>
           </div>
         </>
-      ) : headerLayout === "banner-card" ? (
-        <>
-          {/* Banner Card Layout - a colored cover with no round avatar; a
-              floating elevated card overlaps the transition into the
-              content, holding a small square logo, name and short
-              subtitle. Buttons render below the card. */}
-          <div
-            className={cn("w-full relative overflow-hidden", interactive && "cursor-pointer")}
-            style={{ height: 190 }}
-            onClick={() => handleClick("banner")}
-          >
-            {profile.bannerUrl ? (
-              <img src={profile.bannerUrl} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
-            ) : (
-              <div className="absolute inset-0 w-full h-full" style={{ background: bannerGradient }} />
-            )}
-          </div>
-
-          <div className="px-6">
-            <div
-              className={cn(
-                "relative z-10 -mt-10 flex items-center gap-3 rounded-2xl p-4 shadow-lg",
-                template.styles.cardBg,
-              )}
-            >
-              <div
-                className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted-foreground/20 cursor-pointer"
-                onClick={() => handleClick("avatar")}
-              >
-                {profile.avatarUrl ? (
-                  <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <User className={cn("h-5 w-5 opacity-70", template.styles.textColor)} />
-                  </div>
-                )}
-              </div>
-              <div className="min-w-0 flex-1 text-left">
-                <h1
-                  className={cn("flex items-center gap-1 truncate font-bold", !profile.titleColor && template.styles.textColor)}
-                  style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
-                  onClick={() => handleClick("username")}
-                >
-                  <span className="truncate">{profile.displayName || "Nome de Exibição"}</span>
-                  {profile.showVerifiedBadge && <VerifiedBadge className="h-3.5 w-3.5 shrink-0" />}
-                </h1>
-                <p
-                  className={cn("truncate text-sm opacity-70", !profile.titleColor && template.styles.textColor)}
-                  style={{ fontFamily: profile.titleFont || "Inter", color: profile.titleColor || undefined }}
-                  onClick={() => handleClick("bio")}
-                >
-                  {profile.bio || `@${profile.handle || profile.username || "usuario"}`}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-6 pt-6 pb-6">{renderButtonsAndSocials()}</div>
-        </>
       ) : headerLayout === "editorial-badge" ? (
         <>
           {/* Editorial Badge Layout - a solid dark section with a stamped
@@ -621,6 +578,26 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
           {renderButtonsAndSocials()}
         </div>
       )}
+    </div>
+  );
+
+  if (!showContentWarningGate) {
+    return pageContent;
+  }
+
+  return (
+    <div className="relative h-full overflow-hidden">
+      <div aria-hidden="true" className="pointer-events-none select-none h-full">
+        {pageContent}
+      </div>
+      <SensitiveContentGate
+        level={profile.contentWarningLevel}
+        state={previewGateAnswer === "denied" ? "denied" : "gate"}
+        themeColors={{ primary: template.styles.primaryColor, accent: template.styles.accentColor }}
+        position="absolute"
+        onConfirm={() => setPreviewGateAnswer("confirmed")}
+        onDeny={() => setPreviewGateAnswer("denied")}
+      />
     </div>
   );
 }
