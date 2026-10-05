@@ -15,7 +15,8 @@ import { SensitiveContentGate } from "@/components/SensitiveContentGate";
 import type { GateAnswer } from "@/lib/contentWarning";
 
 // Shown in the buttons area of the preview when the user hasn't added any real
-// button yet, so the empty state still demonstrates the selected theme.
+// button yet, so the empty state still demonstrates the selected theme - only
+// when the caller opts in (see showExampleButtons).
 const EXAMPLE_BUTTONS: { label: string; icon: string }[] = [
   { label: "Meu link", icon: "link-icon" },
   { label: "Instagram", icon: "si-instagram" },
@@ -38,9 +39,15 @@ interface BioPreviewContentProps {
    */
   interactive?: boolean;
   onClickElement?: (type: "avatar" | "username" | "bio" | "link" | "banner", linkId?: string) => void;
+  /**
+   * With no real buttons yet, render two labeled placeholder buttons
+   * ("Meu link"/"Instagram") so button styles can still be previewed - only
+   * the Design view turns this on. Off, an empty bio shows just the profile.
+   */
+  showExampleButtons?: boolean;
 }
 
-export function BioPreviewContent({ profile, links, interactive = true, onClickElement }: BioPreviewContentProps) {
+export function BioPreviewContent({ profile, links, interactive = true, onClickElement, showExampleButtons = false }: BioPreviewContentProps) {
   // Local only - this is a demo of what a real visitor sees, not a real
   // visit, so it doesn't touch sessionStorage the way BioPage's own gate
   // does. Resets whenever the preview remounts.
@@ -188,7 +195,9 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
           isCards: link.linkType === "cards",
           cardsData: link.cardsData,
         }))
-      : EXAMPLE_BUTTONS.map((example, i) => ({ key: `example-${i}`, title: example.label, icon: example.icon, isExample: true }));
+      : showExampleButtons
+        ? EXAMPLE_BUTTONS.map((example, i) => ({ key: `example-${i}`, title: example.label, icon: example.icon, isExample: true }))
+        : [];
 
   // Mirrors the button's own fill logic - reused for icon chips that need
   // their own visible surface (unified-card rows, the overlap-alternate
@@ -432,17 +441,25 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     </div>
   );
 
+  const showingExamples = displayButtons.some((item) => item.isExample);
+
   const renderButtonsAndSocials = () => (
     <>
-      {buttonLayout === "unified-card"
-        ? renderUnifiedCardList()
-        : buttonLayout === "overlap-alternate"
-          ? renderOverlapAlternateList()
-          : buttonLayout === "card-overlap-alternate"
-            ? renderCardOverlapAlternateList()
-            : buttonLayout === "banner"
-              ? renderBannerList()
-              : renderPillList(buttonLayout === "pill-round-icon" ? "round" : "square")}
+      {/* Labels the placeholders so they don't read as real links. */}
+      {showingExamples && (
+        <p className="mb-2 text-center text-xs text-muted-foreground">Exemplo de botões</p>
+      )}
+
+      {displayButtons.length > 0 &&
+        (buttonLayout === "unified-card"
+          ? renderUnifiedCardList()
+          : buttonLayout === "overlap-alternate"
+            ? renderOverlapAlternateList()
+            : buttonLayout === "card-overlap-alternate"
+              ? renderCardOverlapAlternateList()
+              : buttonLayout === "banner"
+                ? renderBannerList()
+                : renderPillList(buttonLayout === "pill-round-icon" ? "round" : "square"))}
 
       {socials.length > 0 && (
         <div className="flex justify-center gap-4 flex-wrap">

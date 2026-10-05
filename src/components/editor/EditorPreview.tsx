@@ -7,9 +7,11 @@ interface EditorPreviewProps {
   profile: EditorProfile;
   links: EditorLink[];
   onClickElement?: (type: "avatar" | "username" | "bio" | "link" | "banner", linkId?: string) => void;
+  /** Passed through to BioPreviewContent - placeholder buttons for a bio with no links yet (Design view only). */
+  showExampleButtons?: boolean;
 }
 
-export function EditorPreview({ profile, links, onClickElement }: EditorPreviewProps) {
+export function EditorPreview({ profile, links, onClickElement, showExampleButtons }: EditorPreviewProps) {
   const openPreview = () => {
     if (profile.username) {
       window.open(`/${profile.username}`, "_blank");
@@ -26,7 +28,7 @@ export function EditorPreview({ profile, links, onClickElement }: EditorPreviewP
         <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-foreground/20 rounded-b-2xl z-10" />
 
         {/* Content */}
-        <BioPreviewContent profile={profile} links={links} onClickElement={onClickElement} interactive />
+        <BioPreviewContent profile={profile} links={links} onClickElement={onClickElement} interactive showExampleButtons={showExampleButtons} />
       </div>
 
       {/* Open in new tab button */}

@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { renderIcon } from "@/components/LinkCard";
 import { getLinkIconComponent, WHATSAPP_DEFAULT_ICON_VALUE } from "@/lib/linkIcons";
 import { DEFAULT_WHATSAPP_COUNTRY_CODE, WHATSAPP_COUNTRY_CODES, buildWhatsappUrl, maskWhatsappPhone } from "@/lib/whatsapp";
+import { normalizeLinkUrl } from "@/lib/linkUrl";
 import { LinkMediaPicker } from "./LinkMediaPicker";
 
 interface AdminLinkItemProps {
@@ -20,6 +21,10 @@ interface AdminLinkItemProps {
   highlighted?: boolean;
   /** Whether this "button" card is showing its full edit fields below the summary row - only one card in the list is expanded at a time (see AdminLayout's expandedId). Ignored for "cards" blocks, which always open CardsInfoEditor instead. */
   expanded?: boolean;
+  /** Just created from the empty-state pills: focus the main field (phone for WhatsApp, URL otherwise) once expanded. */
+  autoFocusField?: boolean;
+  /** Called right after that focus, so the parent clears the flag and re-renders don't focus again. */
+  onAutoFocused?: () => void;
   /** Toggles `expanded` for this card - wired to its pencil icon. */
   onToggleExpand: (id: string) => void;
   onToggle: (id: string, isActive: boolean) => void;
@@ -38,7 +43,7 @@ const TYPE_OPTIONS: { value: "link" | "whatsapp"; label: string; iconValue: stri
   { value: "whatsapp", label: "WhatsApp", iconValue: WHATSAPP_DEFAULT_ICON_VALUE },
 ];
 
-export function AdminLinkItem({ link, highlighted, expanded, onToggleExpand, onToggle, onUpdate, onSaveNow, onEditCards, onDelete, onDuplicate }: AdminLinkItemProps) {
+export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onAutoFocused, onToggleExpand, onToggle, onUpdate, onSaveNow, onEditCards, onDelete, onDuplicate }: AdminLinkItemProps) {
   const {
     attributes,
     listeners,
@@ -58,9 +63,9 @@ export function AdminLinkItem({ link, highlighted, expanded, onToggleExpand, onT
   // existing autosave debounce), this just avoids bouncing the input's own
   // value off the round-trip through parent state. Reset automatically
   // whenever this row starts rendering a different link, because
-  // AdminLinksList keys each row by `link.id` (a temp id swapped for the
-  // real one after insert remounts this component with fresh props, not a
-  // stale draft).
+  // AdminLinksList keys each row per link - except across autosave's temp ->
+  // real id swap, where it deliberately keeps the same key (same link, same
+  // content) so the row doesn't remount and lose focus mid-typing.
   const [title, setTitle] = useState(link.title);
   const [urlDraft, setUrlDraft] = useState(link.url);
   const [phoneDraft, setPhoneDraft] = useState(link.whatsappPhone || "");
@@ -82,6 +87,34 @@ export function AdminLinkItem({ link, highlighted, expanded, onToggleExpand, onT
       rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [highlighted]);
+
+  // Main field of a block just created from the empty-state pills. Waits a
+  // frame (plus a short beat) so the expanded fields are laid out and
+  // visible, then focuses without the browser's instant jump and scrolls
+  // there smoothly instead - matters on mobile, where the keyboard opening
+  // would otherwise hide the field.
+  const mainFieldRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    if (!autoFocusField || !expanded) return;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const frame = requestAnimationFrame(() => {
+      timeout = setTimeout(() => {
+        const field = mainFieldRef.current;
+        if (!field) return;
+        field.focus({ preventScroll: true });
+        // Caret at the end of a prefilled value (e.g. "https://instagram.com/"),
+        // so the user only types what's missing - focus() alone doesn't
+        // guarantee that position in every browser.
+        field.setSelectionRange(field.value.length, field.value.length);
+        field.scrollIntoView({ behavior: "smooth", block: "center" });
+        onAutoFocused?.();
+      }, 50);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [autoFocusField, expanded, onAutoFocused]);
 
   if (link.linkType === "cards") {
     return (
@@ -271,6 +304,7 @@ export function AdminLinkItem({ link, highlighted, expanded, onToggleExpand, onT
                 </Select>
 
                 <Input
+                  ref={mainFieldRef}
                   type="tel"
                   value={maskWhatsappPhone(phoneDraft)}
                   onChange={(e) => {
@@ -298,18 +332,19 @@ export function AdminLinkItem({ link, highlighted, expanded, onToggleExpand, onT
           ) : (
             <div>
               <Input
+                ref={mainFieldRef}
                 value={urlDraft}
                 onChange={(e) => {
                   setUrlDraft(e.target.value);
                   onUpdate(link.id, { url: e.target.value });
                 }}
                 onBlur={() => {
-                  const trimmed = urlDraft.trim();
                   // Bare domains ("seu-site.com/pagina") are valid input here -
                   // normalize to a real https:// link on blur so the public
-                  // page's plain `href={link.url}` still works.
-                  if (trimmed && !/^https?:\/\//i.test(trimmed)) {
-                    const normalized = `https://${trimmed}`;
+                  // page's plain `href={link.url}` still works (plus the
+                  // Instagram-specific shapes, see normalizeLinkUrl).
+                  const normalized = normalizeLinkUrl(urlDraft, link.icon);
+                  if (normalized !== urlDraft) {
                     setUrlDraft(normalized);
                     onUpdate(link.id, { url: normalized });
                   }

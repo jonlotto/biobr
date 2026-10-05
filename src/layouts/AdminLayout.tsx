@@ -1,4 +1,4 @@
-import { useEffect, useState, ComponentType, SVGProps } from "react";
+import { useEffect, useRef, useState, ComponentType, SVGProps } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEditorState, EditorLink, CardItem } from "@/hooks/useEditorState";
@@ -11,6 +11,7 @@ import { SocialIconsSection } from "@/components/admin/SocialIconsSection";
 import { AdminLinksList } from "@/components/admin/AdminLinksList";
 import { AdminRealtimePreview } from "@/components/admin/AdminRealtimePreview";
 import { AddLinkSheet, type AddLinkOptionId } from "@/components/admin/AddLinkSheet";
+import { EmptyLinksCard, type EmptyLinksSuggestion } from "@/components/admin/EmptyLinksCard";
 import { DesignDrilldownView } from "@/components/design/DesignDrilldownView";
 import { EditorPreview } from "@/components/editor/EditorPreview";
 import { CardsInfoEditor } from "@/components/editor/CardsInfoEditor";
@@ -97,6 +98,10 @@ export default function AdminLayout() {
   // every other one stays collapsed to a single summary row. Only one at a
   // time, toggled by that card's own pencil icon (see AdminLinkItem).
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // New block whose main field (phone/URL) should grab focus once it has
+  // expanded - set by the empty-state pills, cleared by AdminLinkItem right
+  // after it focuses, so later re-renders don't steal focus again.
+  const [autoFocusLinkId, setAutoFocusLinkId] = useState<string | null>(null);
   // The "Adicionar link ou bloco" bottom sheet, letting the user pick
   // Link / WhatsApp / Cards first.
   const [showAddLinkSheet, setShowAddLinkSheet] = useState(false);
@@ -144,6 +149,23 @@ export default function AdminLayout() {
     const timeout = setTimeout(() => setSelectedLinkId(null), 2000);
     return () => clearTimeout(timeout);
   }, [selectedLinkId, links, setSelectedLinkId]);
+
+  // Autosave swaps a new block's temp id for its real database id ~800ms
+  // after creation, keeping everything else (incl. its order) - follow the
+  // block by that order, otherwise the one just opened for editing
+  // collapses on its own mid-typing.
+  const expandedOrderRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!expandedId) return;
+    const current = links.find((l) => l.id === expandedId);
+    if (current) {
+      expandedOrderRef.current = current.order;
+      return;
+    }
+    if (!expandedId.startsWith("temp-")) return;
+    const swapped = links.find((l) => l.order === expandedOrderRef.current && !l.id.startsWith("temp-"));
+    setExpandedId(swapped?.id ?? null);
+  }, [links, expandedId]);
 
   // Handle view change - update URL without full navigation
   const handleViewChange = (view: AdminView, designCategory?: "header") => {
@@ -194,7 +216,16 @@ export default function AdminLayout() {
     setShowAddLinkSheet(true);
   };
 
-  const handleSelectAddOption = (option: AddLinkOptionId) => {
+  const handleSelectAddOption = (
+    option: AddLinkOptionId,
+    prefill?: {
+      title?: string;
+      url?: string;
+      icon?: string;
+      iconVariant?: EditorLink["iconVariant"];
+      autoFocus?: boolean;
+    },
+  ) => {
     setShowAddLinkSheet(false);
     setSelectedLinkId(null);
     if (option === "cards") {
@@ -205,10 +236,10 @@ export default function AdminLayout() {
     // "Link"/"WhatsApp" blocks are created empty and filled in inline, right
     // in their new AdminLinkItem card - no separate create dialog anymore.
     const newId = addLink({
-      title: "",
-      url: "",
-      icon: option === "whatsapp" ? WHATSAPP_DEFAULT_ICON_VALUE : null,
-      iconVariant: option === "whatsapp" ? "brand" : null,
+      title: prefill?.title ?? "",
+      url: prefill?.url ?? "",
+      icon: prefill?.icon ?? (option === "whatsapp" ? WHATSAPP_DEFAULT_ICON_VALUE : null),
+      iconVariant: prefill?.iconVariant ?? (option === "whatsapp" ? "brand" : null),
       thumbnailUrl: null,
       linkType: "button",
       style: "filled",
@@ -225,6 +256,29 @@ export default function AdminLayout() {
     setSelectedLinkId(newId);
     // Open straight into edit mode - a blank new block is useless collapsed.
     setExpandedId(newId);
+    if (prefill?.autoFocus) setAutoFocusLinkId(newId);
+  };
+
+  // Empty-state pills: same creation path as the "Adicionar Link" sheet,
+  // just skipping the type picker (the pill already is that choice) and
+  // focusing the block's main field once it's open.
+  const handleEmptyStateSuggestion = (suggestion: EmptyLinksSuggestion) => {
+    if (suggestion === "whatsapp") {
+      handleSelectAddOption("whatsapp", { title: "WhatsApp", autoFocus: true });
+    } else if (suggestion === "instagram") {
+      // A regular "Link" block, prefilled so the user only types the @ -
+      // AdminLinkItem's URL normalization handles "@user", pasted share
+      // links, etc. for Instagram-iconed links.
+      handleSelectAddOption("link", {
+        title: "Instagram",
+        url: "https://instagram.com/",
+        icon: "si-instagram",
+        iconVariant: "brand",
+        autoFocus: true,
+      });
+    } else {
+      handleSelectAddOption("link", { autoFocus: true });
+    }
   };
 
   const handleSaveSocial = (username: string) => {
@@ -399,6 +453,8 @@ export default function AdminLayout() {
                 links={buttons}
                 highlightedId={selectedLinkId}
                 expandedId={expandedId}
+                autoFocusId={autoFocusLinkId}
+                onAutoFocused={() => setAutoFocusLinkId(null)}
                 onToggleExpand={(id) => setExpandedId((prev) => (prev === id ? null : id))}
                 onReorder={reorderLinks}
                 onToggle={handleToggleLink}
@@ -412,10 +468,7 @@ export default function AdminLayout() {
                 onDuplicate={duplicateLink}
               />
             ) : (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>Você ainda não tem links.</p>
-                <p className="text-sm">Clique em "Adicionar Link" para começar.</p>
-              </div>
+              <EmptyLinksCard onSelect={handleEmptyStateSuggestion} />
             )}
 
             {/* Social Icons Section */}
@@ -473,6 +526,7 @@ export default function AdminLayout() {
             profile={profile}
             links={links}
             onClickElement={activeView === "links" ? handlePreviewClick : undefined}
+            showExampleButtons={activeView === "design"}
           />
         </aside>
       </div>
