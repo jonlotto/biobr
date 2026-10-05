@@ -314,7 +314,9 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
             type="button"
             className={cn(
               "relative w-full rounded-full flex items-center transition-all",
-              sideLeft ? "pl-16 pr-6" : "pl-6 pr-16",
+              // Same title inset as BioPage's render of this layout - clears
+              // the 68px icon chip with a visible gap.
+              !hasMedia ? "px-6" : sideLeft ? "pl-[88px] pr-6" : "pl-6 pr-[88px]",
               !hasCustomButtonColors && cn(template.styles.buttonBg, template.styles.buttonText),
               interactive && !item.isExample && "hover:scale-[1.01] cursor-pointer",
             )}

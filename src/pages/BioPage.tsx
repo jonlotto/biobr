@@ -332,7 +332,9 @@ const BioPage = () => {
             rel="noopener noreferrer"
             className={cn(
               "relative flex w-full items-center rounded-full transition-all hover:scale-[1.01] animate-slide-up opacity-0",
-              sideLeft ? "pl-16 pr-6" : "pl-6 pr-16",
+              // 88px on the icon's side: the 68px chip ends ~60px in, so this
+              // leaves a clear gap between it and the title.
+              !hasMedia ? "px-6" : sideLeft ? "pl-[88px] pr-6" : "pl-6 pr-[88px]",
             )}
             style={{ height: 56, animationDelay: `${index * 100}ms`, fontFamily: linkFontFamily, ...linkFillStyle }}
           >
