@@ -24,15 +24,15 @@ export function EmptyLinksCard({ onSelect }: EmptyLinksCardProps) {
   return (
     <div className="rounded-xl border-2 border-dashed border-border bg-muted/30 px-6 py-10 text-center">
       <p className="font-semibold text-foreground">Sua bio está vazia</p>
-      <p className="mt-1 text-sm text-muted-foreground">Comece adicionando um destes:</p>
+      <p className="mt-2 text-sm text-muted-foreground">Comece adicionando um destes:</p>
 
-      <div className="mt-5 flex flex-wrap justify-center gap-3">
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
         {SUGGESTIONS.map(({ id, label, icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => onSelect(id)}
-            className="flex items-center gap-2 rounded-full bg-card px-5 py-2.5 text-sm font-medium text-foreground/80 shadow-sm transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-10 items-center gap-2 rounded-full bg-card px-4 text-sm font-medium text-foreground/80 shadow-sm transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {icon}
             {label}

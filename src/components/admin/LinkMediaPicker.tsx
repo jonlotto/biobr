@@ -75,7 +75,7 @@ export function LinkMediaPicker({ icon, iconVariant, thumbnailUrl, onChange }: L
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted transition-colors hover:border-muted-foreground/50",
+          "flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted transition-colors hover:border-muted-foreground/50",
           iconVariant === "light" && "bg-neutral-900",
         )}
         title="Ícone ou imagem do bloco"
@@ -107,7 +107,7 @@ export function LinkMediaPicker({ icon, iconVariant, thumbnailUrl, onChange }: L
             "md:top-[50%] md:translate-y-[-50%] md:max-h-[85vh]",
           )}
         >
-          <DialogHeader className="border-b border-border px-4 py-3 pr-10 text-left sm:px-5 sm:py-4">
+          <DialogHeader className="border-b border-border px-4 py-4 pr-10 text-left sm:px-6">
             <DialogTitle>Ícone ou imagem</DialogTitle>
             <DialogDescription>
               Adicione um ícone ou imagem para chamar mais atenção para este link.
@@ -122,7 +122,7 @@ export function LinkMediaPicker({ icon, iconVariant, thumbnailUrl, onChange }: L
               same as the side-by-side desktop layout, just stacked. */}
           <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden sm:grid-cols-2 sm:grid-rows-1">
             {/* Upload column */}
-            <div className="flex flex-col gap-2 border-b border-border p-4 sm:gap-3 sm:border-b-0 sm:border-r sm:p-5">
+            <div className="flex flex-col gap-2 border-b border-border p-4 sm:gap-4 sm:border-b-0 sm:border-r sm:p-6">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -143,7 +143,7 @@ export function LinkMediaPicker({ icon, iconVariant, thumbnailUrl, onChange }: L
                 onDragLeave={() => setDragActive(false)}
                 onDrop={handleDrop}
                 className={cn(
-                  "flex min-h-[96px] flex-1 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed p-4 text-center transition-colors sm:min-h-[160px] sm:gap-2 sm:p-6",
+                  "flex min-h-[96px] flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-4 text-center transition-colors sm:min-h-[160px] sm:gap-2 sm:p-6",
                   dragActive ? "border-primary bg-primary/5" : "border-border hover:border-muted-foreground/50",
                 )}
               >

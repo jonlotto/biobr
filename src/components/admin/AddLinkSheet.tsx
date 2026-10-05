@@ -97,9 +97,9 @@ export function AddLinkSheet({ open, onClose, onSelect }: AddLinkSheetProps) {
                   onSelect(option.id);
                   setQuery("");
                 }}
-                className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/40"
+                className="flex w-full items-center gap-2 rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/40"
               >
-                <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full", option.bgClassName, option.fgClassName)}>
+                <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full", option.bgClassName, option.fgClassName)}>
                   <Icon className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">

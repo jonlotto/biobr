@@ -93,7 +93,7 @@ function SortableCardRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn("space-y-2 rounded-xl border border-border bg-card p-3", isDragging && "opacity-50 shadow-lg")}
+      className={cn("space-y-2 rounded-xl border border-border bg-card p-4", isDragging && "opacity-50 shadow-lg")}
     >
       <div className="flex items-center gap-2">
         <button
@@ -107,7 +107,7 @@ function SortableCardRow({
         <button
           type="button"
           onClick={onPickIcon}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted"
         >
           {Icon ? <Icon className="h-4 w-4" /> : <span className="text-xs text-muted-foreground">?</span>}
         </button>

@@ -121,7 +121,7 @@ export function AdminLinksList({
         items={sortedLinks.map((l) => l.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="space-y-3">
+        <div className="space-y-4">
           {sortedLinks.map((link) => (
             <AdminLinkItem
               key={keyFor(link)}

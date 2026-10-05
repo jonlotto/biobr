@@ -7,7 +7,6 @@ import { MobileBottomNav } from "@/components/admin/MobileBottomNav";
 import { AnalyticsSection } from "@/components/admin/AnalyticsSection";
 import { ProfileHeaderCard } from "@/components/admin/ProfileHeaderCard";
 import { OnboardingCards } from "@/components/admin/OnboardingCards";
-import { SocialIconsSection } from "@/components/admin/SocialIconsSection";
 import { AdminLinksList } from "@/components/admin/AdminLinksList";
 import { AdminRealtimePreview } from "@/components/admin/AdminRealtimePreview";
 import { AddLinkSheet, type AddLinkOptionId } from "@/components/admin/AddLinkSheet";
@@ -28,6 +27,7 @@ import { EmailIcon } from "@/components/icons/EmailIcon";
 import { WhatsAppIcon } from "@/components/icons/WhatsAppIcon";
 import { WHATSAPP_DEFAULT_ICON_VALUE } from "@/lib/linkIcons";
 import { DEFAULT_WHATSAPP_COUNTRY_CODE } from "@/lib/whatsapp";
+import { loadGoogleFonts } from "@/lib/googleFonts";
 
 export interface SocialPlatform {
   id: string;
@@ -149,6 +149,19 @@ export default function AdminLayout() {
     const timeout = setTimeout(() => setSelectedLinkId(null), 2000);
     return () => clearTimeout(timeout);
   }, [selectedLinkId, links, setSelectedLinkId]);
+
+  // Admin UI font (Plus Jakarta Sans), rolled out tab by tab - Links only
+  // for now. Scoped through a class on <body> rather than this layout's
+  // root because dialogs, drawers, dropdowns and toasts portal straight
+  // into <body>, outside this tree. The phone preview opts back out (see
+  // .bio-preview-fonts in index.css), and the public bio page never mounts
+  // this layout, so neither ever picks it up.
+  useEffect(() => {
+    if (activeView !== "links") return;
+    loadGoogleFonts(["Plus Jakarta Sans"]);
+    document.body.classList.add("admin-font");
+    return () => document.body.classList.remove("admin-font");
+  }, [activeView]);
 
   // Autosave swaps a new block's temp id for its real database id ~800ms
   // after creation, keeping everything else (incl. its order) - follow the
@@ -366,7 +379,10 @@ export default function AdminLayout() {
       // gated on selectedLinkId further down.
       setSelectedLinkId(linkId);
       setExpandedId(linkId);
-    } else if (type === "avatar" || type === "username" || type === "bio") {
+    } else if (type === "bio") {
+      // Same place the profile card's bio jumps to.
+      handleViewChange("design", "header");
+    } else if (type === "avatar" || type === "username") {
       navigate("/editor");
     }
   };
@@ -393,7 +409,7 @@ export default function AdminLayout() {
         {/* Main Content */}
         {activeView === "links" ? (
           <main key="links" className="flex-1 overflow-auto animate-fade-in">
-          <div className="max-w-2xl mx-auto pt-8 px-6 pb-24 md:pb-8">
+          <div className="max-w-2xl mx-auto pt-8 px-4 md:px-6 pb-24 md:pb-8">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-display font-bold">Seus Links</h1>
@@ -427,6 +443,15 @@ export default function AdminLayout() {
                 updateProfile({ handle: newHandle, displayName: newHandle });
                 saveNow();
               }}
+              onEditHeader={() => handleViewChange("design", "header")}
+              socials={socials}
+              platforms={SOCIAL_PLATFORMS}
+              onSelectPlatform={(platform, existingSocial) => {
+                setSelectedPlatform(platform);
+                setEditingSocial(existingSocial ?? null);
+                setShowAddSocial(true);
+              }}
+              onDeleteSocial={deleteLink}
             />
 
             {/* Onboarding Checklist */}
@@ -471,20 +496,6 @@ export default function AdminLayout() {
               <EmptyLinksCard onSelect={handleEmptyStateSuggestion} />
             )}
 
-            {/* Social Icons Section */}
-            <SocialIconsSection
-              socials={socials}
-              platforms={SOCIAL_PLATFORMS}
-              onSelectPlatform={(platform, existingSocial) => {
-                setSelectedPlatform(platform);
-                setEditingSocial(existingSocial ?? null);
-                setShowAddSocial(true);
-              }}
-              onDeleteSocial={(linkId) => {
-                deleteLink(linkId);
-              }}
-            />
-
             {/* Real-time Preview */}
             <AdminRealtimePreview profile={profile} links={links} />
           </div>
@@ -516,17 +527,18 @@ export default function AdminLayout() {
         </main>
         )}
 
-        {/* Preview Panel - overflow-y-auto is a safety net: the phone frame
-            itself now caps at 70dvh (see EditorPreview.tsx) so this should
-            rarely need to actually scroll, but a fixed height + the "Abrir
-            em nova aba" button below it can still add up to more than a very
-            short viewport can fit. */}
-        <aside className="w-[380px] border-l border-border bg-muted/30 flex-shrink-0 p-6 flex items-center justify-center overflow-y-auto hidden lg:flex">
+        {/* Preview Panel - full viewport height and never scrolls itself (only
+            <main> to its left does), so it stays put while the list scrolls.
+            The phone sizes itself to whatever height this leaves it (see
+            EditorPreview's fitToContainer), so frame + "Abrir em nova aba"
+            always fit, however short the screen. */}
+        <aside className="w-[380px] border-l border-border bg-muted/30 flex-shrink-0 p-6 hidden lg:flex">
           <EditorPreview
             profile={profile}
             links={links}
             onClickElement={activeView === "links" ? handlePreviewClick : undefined}
             showExampleButtons={activeView === "design"}
+            fitToContainer
           />
         </aside>
       </div>

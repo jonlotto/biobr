@@ -487,9 +487,11 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
     </>
   );
 
+  // "bio-preview-fonts" (here and on the gated wrapper below) keeps the
+  // public page's fonts inside the admin panel's own font scope - index.css.
   const pageContent = (
     <div
-      className={cn("h-full overflow-auto", !hasCustomBackground && !hasImageBackground && template.styles.background)}
+      className={cn("bio-preview-fonts h-full overflow-auto", !hasCustomBackground && !hasImageBackground && template.styles.background)}
       style={backgroundStyle}
     >
       {headerLayout === "banner" || headerLayout === "banner-wave" ? (
@@ -605,7 +607,7 @@ export function BioPreviewContent({ profile, links, interactive = true, onClickE
   }
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="bio-preview-fonts relative h-full overflow-hidden">
       <div aria-hidden="true" className="pointer-events-none select-none h-full">
         {pageContent}
       </div>

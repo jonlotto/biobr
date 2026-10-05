@@ -122,7 +122,7 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
         ref={setNodeRef}
         style={sortableStyle}
         className={cn(
-          "flex items-center gap-3 p-4 bg-card rounded-xl border border-border group",
+          "flex items-center gap-2 p-4 bg-card rounded-xl border border-border group",
           isDragging && "opacity-50 shadow-lg"
         )}
       >
@@ -208,13 +208,13 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
       ref={setRefs}
       style={sortableStyle}
       className={cn(
-        "rounded-xl border border-dashed border-border bg-card p-3 group",
+        "rounded-xl border border-dashed border-border bg-card p-4 group",
         isDragging && "opacity-50 shadow-lg",
         highlighted && "ring-2 ring-primary",
       )}
     >
       {/* Summary row - always visible; the fields below only show up while expanded */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <button
           {...attributes}
           {...listeners}
@@ -223,7 +223,7 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
           <GripVertical className="h-5 w-5" />
         </button>
 
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
           {link.thumbnailUrl ? (
             <img src={link.thumbnailUrl} alt="" className="h-full w-full object-cover" />
           ) : link.icon ? (
@@ -269,7 +269,7 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
 
       {/* Edit fields - only rendered while expanded */}
       {expanded && (
-        <div className="mt-3 space-y-2 border-t border-dashed border-border pt-3">
+        <div className="mt-4 space-y-2 border-t border-dashed border-border pt-4">
           <Input
             value={title}
             onChange={(e) => {
@@ -278,7 +278,7 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
             }}
             onBlur={onSaveNow}
             placeholder="Nome fácil"
-            className="h-9 text-sm font-medium"
+            className="h-10 text-sm font-medium"
           />
 
           {isWhatsapp ? (
@@ -291,7 +291,7 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
                     onSaveNow();
                   }}
                 >
-                  <SelectTrigger className="h-9 w-[92px] shrink-0 px-2 text-sm">
+                  <SelectTrigger className="h-10 w-[92px] shrink-0 px-2 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -314,7 +314,7 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
                   }}
                   onBlur={onSaveNow}
                   placeholder="(11) 99999-9999"
-                  className="h-9 min-w-0 flex-1 text-sm"
+                  className="h-10 min-w-0 flex-1 text-sm"
                 />
               </div>
 
@@ -326,7 +326,7 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
                 }}
                 onBlur={onSaveNow}
                 placeholder="Olá! Vi sua bio..."
-                className="h-9 text-sm"
+                className="h-10 text-sm"
               />
             </div>
           ) : (
@@ -351,15 +351,15 @@ export function AdminLinkItem({ link, highlighted, expanded, autoFocusField, onA
                   onSaveNow();
                 }}
                 placeholder="seu-site.com/pagina"
-                className={cn("h-9 text-sm", urlInvalid && "border-destructive focus-visible:ring-destructive")}
+                className={cn("h-10 text-sm", urlInvalid && "border-destructive focus-visible:ring-destructive")}
               />
               {urlInvalid && <p className="mt-1 text-xs text-destructive">Adicione uma URL</p>}
             </div>
           )}
 
-          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={link.buttonKind} onValueChange={(v) => handleKindChange(v as "link" | "whatsapp")}>
-              <SelectTrigger className="h-9 w-auto min-w-[128px] gap-2 text-sm">
+              <SelectTrigger className="h-10 w-auto min-w-[128px] gap-2 text-sm">
                 <SelectValue>
                   <span className="flex items-center gap-2">
                     {CurrentTypeIcon && <CurrentTypeIcon className="h-4 w-4" variant="brand" />}

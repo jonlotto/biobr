@@ -14,7 +14,7 @@ function OnboardingCard({ icon, title, subtitle, completed, onClick }: Onboardin
   const card = (
     <div
       className={cn(
-        "flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-colors",
+        "flex w-full items-center gap-2 rounded-2xl border border-border bg-card p-4 text-left transition-colors",
         completed ? "opacity-60" : "hover:border-primary/40",
       )}
     >
@@ -73,7 +73,7 @@ export function OnboardingCards({ hasLinks, hasProfileSetup, createdAt, onAddLin
   if (hasLinks && hasProfileSetup) return null;
 
   return (
-    <div className="space-y-3 mb-6">
+    <div className="space-y-4 mb-6">
       <OnboardingCard
         icon={<Link2 className="h-5 w-5" />}
         title="Cadastre seu primeiro link"

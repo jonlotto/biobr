@@ -141,6 +141,28 @@
   }
 }
 
+/* Admin panel font - <body> gets .admin-font from AdminLayout (it also
+   loads the font). Unlayered and body-qualified so it outranks the base
+   rules above and the font-sans/font-display utilities. */
+body.admin-font,
+body.admin-font :is(h1, h2, h3, h4, h5, h6),
+body.admin-font .font-sans,
+body.admin-font .font-display {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* ...except the phone preview's content, which must keep rendering exactly
+   like the public bio page: Inter body, Poppins headings (the profile's own
+   title font is set inline, so it still wins over both). */
+body.admin-font .bio-preview-fonts,
+body.admin-font .bio-preview-fonts .font-sans {
+  font-family: 'Inter', sans-serif;
+}
+body.admin-font .bio-preview-fonts :is(h1, h2, h3, h4, h5, h6),
+body.admin-font .bio-preview-fonts .font-display {
+  font-family: 'Poppins', sans-serif;
+}
+
 @layer utilities {
   .gradient-bg {
     background: linear-gradient(
@@ -183,4 +205,16 @@
   .shadow-glow-lg {
     box-shadow: 0 16px 48px -12px hsl(var(--shadow-color) / 0.4);
   }
+}
+
+/* Admin's fitted phone preview (EditorPreview fitToContainer): scrolling
+   still works inside the phone screen, the scrollbar just isn't drawn - a
+   real phone doesn't show a desktop one either. */
+.preview-hide-scrollbar,
+.preview-hide-scrollbar * {
+  scrollbar-width: none;
+}
+.preview-hide-scrollbar::-webkit-scrollbar,
+.preview-hide-scrollbar *::-webkit-scrollbar {
+  display: none;
 }
