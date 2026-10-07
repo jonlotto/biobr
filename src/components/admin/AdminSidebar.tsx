@@ -1,6 +1,6 @@
 import { useState, type ComponentType, type MouseEvent, type SVGProps } from "react";
 import { motion } from "framer-motion";
-import { Link2, Palette, Settings, Users, QrCode, ExternalLink, LogOut } from "lucide-react";
+import { Link2, Palette, BarChart3, Settings, Users, QrCode, ExternalLink, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Sidebar, SidebarBody, SidebarLink, Logo, LogoIcon, useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ interface AdminSidebarProps {
 const NAV_ITEMS: { view: AdminView; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] = [
   { view: "links", label: "Links", icon: Link2 },
   { view: "design", label: "Design", icon: Palette },
+  { view: "analytics", label: "Analytics", icon: BarChart3 },
   { view: "settings", label: "Configurações", icon: Settings },
 ];
 

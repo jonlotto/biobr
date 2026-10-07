@@ -3,7 +3,6 @@ import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEditorState, EditorLink, CardItem } from "@/hooks/useEditorState";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { MobileBottomNav } from "@/components/admin/MobileBottomNav";
 import { AnalyticsSection } from "@/components/admin/AnalyticsSection";
 import { ProfileHeaderCard } from "@/components/admin/ProfileHeaderCard";
 import { OnboardingCards } from "@/components/admin/OnboardingCards";
@@ -388,17 +387,11 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] bg-background overflow-hidden pt-[env(safe-area-inset-top)] md:pt-0">
-      {/* Collapsible animated sidebar - desktop only now (hover to expand); mobile navigation is handled entirely by MobileBottomNav below, there's no mobile top bar anymore */}
+    <div className="flex flex-col md:flex-row h-[100dvh] bg-background overflow-hidden">
+      {/* Sidebar - desktop: collapsible rail (hover to expand); mobile: top
+          bar (which also clears the iPhone's safe-area top) + hamburger
+          drawer with the same items. See ui/sidebar.tsx. */}
       <AdminSidebar
-        activeSection={activeView}
-        username={profile.username}
-        onNavigate={handleViewChange}
-        onBeforeNavigate={confirmDiscardDesignChanges}
-      />
-
-      {/* Mobile-only fixed bottom navigation bar (replaces the old fullscreen hamburger menu) */}
-      <MobileBottomNav
         activeSection={activeView}
         username={profile.username}
         onNavigate={handleViewChange}
@@ -409,7 +402,7 @@ export default function AdminLayout() {
         {/* Main Content */}
         {activeView === "links" ? (
           <main key="links" className="flex-1 overflow-auto animate-fade-in">
-          <div className="max-w-2xl mx-auto pt-8 px-4 md:px-6 pb-24 md:pb-8">
+          <div className="max-w-2xl mx-auto pt-8 px-4 md:px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] md:pb-8">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-display font-bold">Seus Links</h1>
@@ -512,7 +505,7 @@ export default function AdminLayout() {
         />
       ) : activeView === "analytics" ? (
         <main key="analytics" className="flex-1 overflow-y-auto animate-fade-in">
-          <div className="max-w-xl mx-auto pt-8 px-6 pb-24 md:pb-8">
+          <div className="max-w-xl mx-auto pt-8 px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] md:pb-8">
             <AnalyticsSection />
           </div>
         </main>
@@ -521,7 +514,7 @@ export default function AdminLayout() {
           key="settings"
           className="flex-1 overflow-y-auto animate-fade-in"
         >
-          <div className="max-w-xl mx-auto pt-8 px-6 pb-24 md:pb-8">
+          <div className="max-w-xl mx-auto pt-8 px-6 pb-[calc(2rem+env(safe-area-inset-bottom))] md:pb-8">
             <SettingsSection profile={profile} onUpdate={updateProfile} />
           </div>
         </main>

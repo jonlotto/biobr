@@ -93,17 +93,12 @@ export function LinkMediaPicker({ icon, iconVariant, thumbnailUrl, onChange }: L
         <DialogContent
           className={cn(
             "flex flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl",
-            // Mobile: anchor near the top with a fixed offset instead of the
-            // shared dialog's default true-center (top-[50%] + translate),
-            // and cap height against that same offset - centering would only
-            // move the box's bottom edge up by half of whatever height gets
-            // trimmed off, which isn't reliably enough to clear the fixed
-            // MobileBottomNav bar (z-40, `md:hidden`) sitting flush at the
-            // bottom of the viewport; anchoring the top instead makes the
-            // bottom edge land exactly at `100dvh - reserved`, regardless of
-            // viewport height. `dvh` (not `vh`) so mobile Safari's
-            // collapsing address bar can't inflate the reserved space.
-            "top-4 translate-y-0 max-h-[calc(100dvh-6rem-env(safe-area-inset-bottom))]",
+            // Mobile: anchored near the top (not the shared dialog's
+            // true-center) and height-capped so the bottom edge stays clear of
+            // the iPhone's home indicator: 16px top offset + 16px bottom
+            // margin + the bottom safe area. `dvh` (not `vh`) so mobile
+            // Safari's collapsing address bar can't make it overflow.
+            "top-4 translate-y-0 max-h-[calc(100dvh-2rem-env(safe-area-inset-bottom))]",
             "md:top-[50%] md:translate-y-[-50%] md:max-h-[85vh]",
           )}
         >
